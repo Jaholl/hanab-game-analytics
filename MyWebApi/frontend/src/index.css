@@ -1,0 +1,178 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   HANABI ANALYTICS - Night Festival Theme
+   Inspired by Japanese firework festivals against the night sky
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  /* Night sky palette */
+  --void-black: #0a0a0f;
+  --deep-navy: #0d1117;
+  --twilight: #161b22;
+  --smoke: #21262d;
+  --mist: #30363d;
+
+  /* Firework glow colors */
+  --ember: #ff6b35;
+  --flame: #ff9f1c;
+  --gold: #ffbe0b;
+  --rose: #ff006e;
+  --violet: #8338ec;
+  --cyan: #3a86ff;
+  --mint: #06ffa5;
+
+  /* Text colors */
+  --text-bright: #f0f6fc;
+  --text-primary: #c9d1d9;
+  --text-secondary: #8b949e;
+  --text-muted: #484f58;
+
+  /* Gradients */
+  --glow-ember: linear-gradient(135deg, #ff6b35 0%, #ff9f1c 50%, #ffbe0b 100%);
+  --glow-rose: linear-gradient(135deg, #ff006e 0%, #8338ec 100%);
+  --glow-ocean: linear-gradient(135deg, #3a86ff 0%, #06ffa5 100%);
+  --glow-sunset: linear-gradient(135deg, #ff6b35 0%, #ff006e 100%);
+
+  /* Typography */
+  --font-display: 'Cinzel', serif;
+  --font-body: 'Rajdhani', sans-serif;
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+
+  /* Effects */
+  --glow-soft: 0 0 20px rgba(255, 107, 53, 0.3);
+  --glow-intense: 0 0 40px rgba(255, 107, 53, 0.5), 0 0 80px rgba(255, 159, 28, 0.3);
+
+  font-family: var(--font-body);
+  line-height: 1.6;
+  font-weight: 400;
+  color: var(--text-primary);
+  background-color: var(--void-black);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(131, 56, 236, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 0%, rgba(255, 0, 110, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 100%, rgba(58, 134, 255, 0.1) 0%, transparent 50%),
+    var(--void-black);
+  background-attachment: fixed;
+}
+
+/* Animated background particles */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, rgba(255, 190, 11, 0.4), transparent),
+    radial-gradient(1px 1px at 40px 70px, rgba(255, 107, 53, 0.3), transparent),
+    radial-gradient(1px 1px at 50px 160px, rgba(131, 56, 236, 0.3), transparent),
+    radial-gradient(1px 1px at 90px 40px, rgba(58, 134, 255, 0.4), transparent),
+    radial-gradient(1px 1px at 130px 80px, rgba(255, 0, 110, 0.3), transparent),
+    radial-gradient(1.5px 1.5px at 160px 120px, rgba(6, 255, 165, 0.4), transparent);
+  background-repeat: repeat;
+  background-size: 200px 200px;
+  animation: twinkle 8s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.6;
+}
+
+@keyframes twinkle {
+  0% { opacity: 0.4; }
+  100% { opacity: 0.8; }
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* Selection styling */
+::selection {
+  background: rgba(255, 107, 53, 0.4);
+  color: var(--text-bright);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--deep-navy);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--mist);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--ember);
+  outline-offset: 2px;
+}
+
+/* Utility animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(255, 107, 53, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(255, 159, 28, 0.8));
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
