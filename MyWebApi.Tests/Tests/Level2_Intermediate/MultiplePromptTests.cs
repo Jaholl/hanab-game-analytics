@@ -5,7 +5,7 @@ using MyWebApi.Tests.Builders;
 using MyWebApi.Tests.Helpers;
 using Xunit;
 
-namespace MyWebApi.Tests.Tests.Phase3_FinesseAndPrompts;
+namespace MyWebApi.Tests.Tests.Level2_Intermediate;
 
 /// <summary>
 /// Tests for multiple prompts according to H-Group Level 2 conventions.

@@ -5,10 +5,10 @@ using MyWebApi.Tests.Builders;
 using MyWebApi.Tests.Helpers;
 using Xunit;
 
-namespace MyWebApi.Tests.Tests.Phase3_FinesseAndPrompts;
+namespace MyWebApi.Tests.Tests.Level1_Beginner;
 
 /// <summary>
-/// Tests for basic finesse detection.
+/// Tests for Finesse conventions (Level 1).
 ///
 /// A finesse occurs when a clue points to a card that is NOT directly playable,
 /// but would be playable IF a specific card was played first. The player with
@@ -19,7 +19,7 @@ namespace MyWebApi.Tests.Tests.Phase3_FinesseAndPrompts;
 /// - If finesse was VALID and receiver doesn't play: blame RECEIVER
 /// - If finesse was INVALID (wrong card in finesse position): blame CLUE GIVER
 /// </summary>
-public class BasicFinesseTests
+public class FinesseTests
 {
     [Fact]
     public void ValidFinesse_ReceiverDoesntPlay_BlameReceiver()

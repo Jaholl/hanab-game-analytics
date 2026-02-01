@@ -5,7 +5,7 @@ using MyWebApi.Tests.Builders;
 using MyWebApi.Tests.Helpers;
 using Xunit;
 
-namespace MyWebApi.Tests.Tests.Phase1_BasicRules;
+namespace MyWebApi.Tests.Tests.Level0_BasicRules;
 
 /// <summary>
 /// Tests for illegal action detection.

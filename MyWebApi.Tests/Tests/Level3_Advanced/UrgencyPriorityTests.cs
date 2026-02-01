@@ -5,7 +5,7 @@ using MyWebApi.Tests.Builders;
 using MyWebApi.Tests.Helpers;
 using Xunit;
 
-namespace MyWebApi.Tests.Tests.Phase4_AdvancedScenarios;
+namespace MyWebApi.Tests.Tests.Level3_Advanced;
 
 /// <summary>
 /// Tests for urgency and priority violations.

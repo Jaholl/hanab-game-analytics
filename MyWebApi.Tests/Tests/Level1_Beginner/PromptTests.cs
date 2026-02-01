@@ -5,19 +5,21 @@ using MyWebApi.Tests.Builders;
 using MyWebApi.Tests.Helpers;
 using Xunit;
 
-namespace MyWebApi.Tests.Tests.Phase3_FinesseAndPrompts;
+namespace MyWebApi.Tests.Tests.Level1_Beginner;
 
 /// <summary>
-/// Tests for Missed Prompt detection.
+/// Tests for Prompt conventions (Level 1).
 ///
 /// A prompt occurs when a player has a clued card that is playable.
 /// They should play it rather than discard. Missing a prompt means
 /// discarding when you had a playable clued card.
 ///
-/// Per H-Group conventions, the player who missed the prompt is blamed.
-/// However, there are exceptions (urgent saves, ambiguous prompts).
+/// Per H-Group conventions:
+/// - Prompts take priority over finesses
+/// - The player who missed the prompt is blamed
+/// - Exceptions: urgent saves, ambiguous prompts
 /// </summary>
-public class MissedPromptTests
+public class PromptTests
 {
     [Fact]
     public void DiscardWithPlayableCluedCard_CreatesViolation()

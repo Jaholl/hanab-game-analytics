@@ -5,19 +5,22 @@ using MyWebApi.Tests.Builders;
 using MyWebApi.Tests.Helpers;
 using Xunit;
 
-namespace MyWebApi.Tests.Tests.Phase2_Conventions;
+namespace MyWebApi.Tests.Tests.Level1_Beginner;
 
 /// <summary>
-/// Tests for Missed Save violations.
+/// Tests for Save Clue conventions (Level 1).
 /// Saves are high-priority clues that prevent critical cards from being discarded.
 /// Missing a save when you could have given one is a violation.
 ///
 /// Per H-Group conventions:
+/// - 5 Save: Must use number 5 clue (not color) on chop 5s
+/// - 2 Save: Must use number 2 clue (not color) on chop 2s, with Visible Rule
+/// - Critical Save: Save last remaining copy of any needed card
 /// - Saves have priority over play clues
 /// - The first player who could save is responsible
 /// - Having 0 clue tokens exempts you from save responsibility
 /// </summary>
-public class MissedSaveTests
+public class SaveClueTests
 {
     [Fact]
     public void DiscardWhileTeammateHas5OnChop_CreatesViolation()

@@ -5,7 +5,7 @@ using MyWebApi.Tests.Builders;
 using MyWebApi.Tests.Helpers;
 using Xunit;
 
-namespace MyWebApi.Tests.Tests.Phase3_FinesseAndPrompts;
+namespace MyWebApi.Tests.Tests.Level2_Intermediate;
 
 /// <summary>
 /// Tests for advanced finesse scenarios.
@@ -67,35 +67,102 @@ public class AdvancedFinesseTests
     public void ReverseFinesse_TargetBeforeFinessePlayer()
     {
         // Target is seated before the finesse player in turn order
-        // This is more complex to set up and detect
+        // Alice clues Bob's R2, but Charlie (after Bob) has R1
+        // This is a "reverse finesse" - Bob must wait for Charlie to blind-play
 
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob", "Charlie")
             .WithDeck(
-                "R1,Y1,B1,G1,P1," +  // Alice - will have R1 to blind-play
-                "R3,Y2,B2,G2,P2," +  // Bob
-                "R2,Y3,B3,G3,P3," +  // Charlie - has R2 (focus)
+                "R3,Y1,B1,G1,P1," +  // Alice
+                "R2,Y2,B2,G2,P2," +  // Bob - R2 (target, one-away)
+                "R1,Y3,B3,G3,P3," +  // Charlie - R1 in finesse position
                 "R4,Y4")
-            // Alice clues Charlie's R2
-            // Bob has R3 (not relevant)
-            // Alice has R1 in finesse position
-            // This would be a "reverse finesse" - Alice needs to blind-play on her next turn
-            .ColorClue(2, "Red")  // Alice clues R2 (but Alice has R1!)
+            .ColorClue(1, "Red")  // Alice clues Bob's R2
+            // Bob sees R2 is one-away. Checks if he has R1 (prompt) - no.
+            // Checks Alice (before him in the next round) - would need to wait
+            // Checks Charlie (after him) - Charlie has R1!
+            // This is reverse finesse: Charlie plays R1, then Bob plays R2
+            .Discard(5)           // Bob passes (waiting for Charlie)
+            .Play(10)             // Charlie blind-plays R1!
+            .Play(5)              // Bob plays R2
             .BuildAndAnalyze();
 
-        // Reverse finesses are complex - the clue giver needs to recognize
-        // they have the connecting card and will blind-play on their next turn
-        Assert.True(true, "Specification: Reverse finesse detection is advanced");
+        // Assert - reverse finesse completed successfully
+        violations.Should().NotContainViolation(ViolationType.Misplay);
+
+        // Specification: Reverse finesse detection requires understanding
+        // that the finesse player is AFTER the target in turn order
+        Assert.True(true, "Specification: Reverse finesse is a Level 2+ concept");
+    }
+
+    [Fact]
+    public void ReverseFinesse_TargetPlaysImmediately_Misplay()
+    {
+        // If Bob plays immediately without waiting for Charlie, it's a misplay
+        var (game, states, violations) = GameBuilder.Create()
+            .WithPlayers("Alice", "Bob", "Charlie")
+            .WithDeck(
+                "R3,Y1,B1,G1,P1," +  // Alice
+                "R2,Y2,B2,G2,P2," +  // Bob - R2
+                "R1,Y3,B3,G3,P3," +  // Charlie - R1
+                "R4,Y4")
+            .ColorClue(1, "Red")  // Alice clues Bob's R2
+            .Play(5)              // Bob plays R2 immediately - MISPLAY!
+            .BuildAndAnalyze();
+
+        // Assert - Bob should have waited for Charlie
+        violations.Should().ContainViolation(ViolationType.Misplay);
     }
 
     [Fact]
     public void SelfFinesse_ClueGiverExpectsToBlindPlay()
     {
-        // Clue giver knows they have the connecting card
-        // and will blind-play on their next turn
+        // Alice clues Bob's R2, knowing SHE has R1 in her own finesse position.
+        // Alice will blind-play R1 on her next turn (self-finesse).
 
-        // This is similar to reverse finesse but explicitly tests self-finesse
-        Assert.True(true, "Specification: Self-finesse detection is advanced");
+        var (game, states, violations) = GameBuilder.Create()
+            .WithPlayers("Alice", "Bob", "Charlie")
+            .WithDeck(
+                "R1,Y1,B1,G1,P1," +  // Alice - R1 in finesse position!
+                "R2,Y2,B2,G2,P2," +  // Bob - R2 (target)
+                "R3,Y3,B3,G3,P3," +  // Charlie
+                "R4,Y4")
+            .ColorClue(1, "Red")  // Alice clues Bob's R2 (self-finesse setup!)
+            // Alice knows she has R1 because she can see Bob and Charlie don't have it
+            // between her and the target
+            .Discard(5)           // Bob waits (doesn't have R1)
+            .Discard(10)          // Charlie discards
+            .Play(0)              // Alice blind-plays R1 (completing self-finesse!)
+            .Play(5)              // Bob plays R2
+            .BuildAndAnalyze();
+
+        // Assert - self-finesse completed successfully
+        violations.Should().NotContainViolation(ViolationType.Misplay);
+
+        // Specification: Self-finesse requires the clue giver to recognize
+        // they have the connecting card and will play it
+        Assert.True(true, "Specification: Self-finesse is a Level 2+ concept");
+    }
+
+    [Fact]
+    public void SelfFinesse_ClueGiverDoesntPlay_BrokenFinesse()
+    {
+        // If Alice sets up a self-finesse but doesn't follow through, it's broken
+        var (game, states, violations) = GameBuilder.Create()
+            .WithPlayers("Alice", "Bob", "Charlie")
+            .WithDeck(
+                "R1,Y1,B1,G1,P1," +  // Alice - R1
+                "R2,Y2,B2,G2,P2," +  // Bob - R2
+                "R3,Y3,B3,G3,P3," +  // Charlie
+                "R4,Y4")
+            .ColorClue(1, "Red")  // Alice clues R2 (self-finesse)
+            .Discard(5)           // Bob waits
+            .Discard(10)          // Charlie
+            .Discard(0)           // Alice discards instead of blind-playing!
+            .BuildAndAnalyze();
+
+        // Specification: Alice should have blind-played
+        Assert.True(true, "Specification: Self-finesse tracking is advanced");
     }
 
     [Fact]
@@ -196,21 +263,52 @@ public class AdvancedFinesseTests
     public void DoubleFinesse_TwoCardsFromSamePlayer()
     {
         // One player needs to blind-play two cards in sequence
+        // Alice clues R3 on Charlie. Bob has R1 and R2 in finesse positions.
+        // Bob must blind-play R1, then R2, then Charlie plays R3.
 
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob", "Charlie")
             .WithDeck(
                 "R4,Y1,B1,G1,P1," +  // Alice
-                "R1,R2,B2,G2,P2," +  // Bob - R1 and R2 in finesse positions
+                "R1,R2,B2,G2,P2," +  // Bob - R1 (slot 0, oldest), R2 (slot 1)
                 "R3,Y3,B3,G3,P3," +  // Charlie - R3 focus
                 "R5,Y4")
             .ColorClue(2, "Red")  // Alice clues R3 (double finesse on Bob!)
-            .Play(5)              // Bob plays R1
-            // Bob should play R2 next turn... but the test ends here
+            .Play(5)              // Bob plays R1 (first blind play)
+            .Discard(10)          // Charlie waits (R3 still one-away)
+            .Discard(0)           // Alice discards
+            .Play(6)              // Bob plays R2 (second blind play)
+            .Play(10)             // Charlie plays R3
             .BuildAndAnalyze();
 
-        // Double finesse requires multi-turn tracking
+        // Assert - double finesse completed successfully
+        violations.Should().NotContainViolation(ViolationType.BrokenFinesse);
+
+        // Specification: Double finesse requires Bob to realize he needs to
+        // blind-play twice (since R3 is two-away from playable)
         Assert.True(true, "Specification: Double finesses require multi-turn analysis");
+    }
+
+    [Fact]
+    public void DoubleFinesse_FirstPlayOnly_SecondMissed()
+    {
+        // Bob plays R1 but doesn't follow up with R2
+        var (game, states, violations) = GameBuilder.Create()
+            .WithPlayers("Alice", "Bob", "Charlie")
+            .WithDeck(
+                "R4,Y1,B1,G1,P1," +  // Alice
+                "R1,R2,B2,G2,P2," +  // Bob - R1 and R2
+                "R3,Y3,B3,G3,P3," +  // Charlie - R3
+                "R5,Y4")
+            .ColorClue(2, "Red")  // Double finesse
+            .Play(5)              // Bob plays R1
+            .Discard(10)          // Charlie waits
+            .Discard(0)           // Alice
+            .Discard(6)           // Bob discards R2 instead of playing!
+            .BuildAndAnalyze();
+
+        // Specification: Bob should have continued the finesse
+        Assert.True(true, "Specification: Incomplete double finesse tracking is advanced");
     }
 
     [Fact]

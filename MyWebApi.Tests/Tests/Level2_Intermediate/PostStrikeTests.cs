@@ -5,7 +5,7 @@ using MyWebApi.Tests.Builders;
 using MyWebApi.Tests.Helpers;
 using Xunit;
 
-namespace MyWebApi.Tests.Tests.Phase2_Conventions;
+namespace MyWebApi.Tests.Tests.Level2_Intermediate;
 
 /// <summary>
 /// Tests for "Post-Strike Protocol" according to H-Group Level 2 conventions.
