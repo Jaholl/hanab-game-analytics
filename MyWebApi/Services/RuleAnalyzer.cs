@@ -15,6 +15,15 @@ public class RuleAnalyzer
 
     private static readonly string[] SuitNames = { "Red", "Yellow", "Green", "Blue", "Purple" };
 
+    private readonly AnalyzerOptions _options;
+
+    public RuleAnalyzer() : this(null) { }
+
+    public RuleAnalyzer(AnalyzerOptions? options)
+    {
+        _options = options ?? new AnalyzerOptions();
+    }
+
     public List<RuleViolation> AnalyzeGame(GameExport game, List<GameState> states)
     {
         var violations = new List<RuleViolation>();
@@ -34,22 +43,29 @@ public class RuleAnalyzer
                 case ActionType.Play:
                     CheckMisplay(violations, action, stateBefore, currentPlayerIndex, currentPlayer, i + 1);
                     CheckBrokenFinesse(violations, action, stateBefore, currentPlayerIndex, currentPlayer, i + 1);
+                    CheckMissedSave(violations, action, stateBefore, game, currentPlayerIndex, currentPlayer, i + 1, ActionType.Play);
                     break;
                 case ActionType.Discard:
+                    CheckIllegalDiscard(violations, stateBefore, currentPlayer, i + 1);
                     CheckBadDiscard(violations, action, stateBefore, game, currentPlayerIndex, currentPlayer, i + 1);
-                    CheckMissedSave(violations, action, stateBefore, game, currentPlayerIndex, currentPlayer, i + 1);
+                    CheckMissedSave(violations, action, stateBefore, game, currentPlayerIndex, currentPlayer, i + 1, ActionType.Discard);
                     CheckMissedPrompt(violations, action, stateBefore, currentPlayerIndex, currentPlayer, i + 1);
+                    CheckDoubleDiscardAvoidance(violations, action, stateBefore, game, currentPlayerIndex, currentPlayer, i + 1, i, states);
                     break;
                 case ActionType.ColorClue:
                 case ActionType.RankClue:
                     CheckGoodTouch(violations, action, stateBefore, game, currentPlayerIndex, currentPlayer, i + 1);
                     CheckMCVP(violations, action, stateBefore, game, currentPlayerIndex, currentPlayer, i + 1);
                     CheckFinesseSetup(violations, action, stateBefore, game, currentPlayerIndex, currentPlayer, i + 1, i, states);
+                    CheckMissedSave(violations, action, stateBefore, game, currentPlayerIndex, currentPlayer, i + 1, action.Type);
                     break;
             }
         }
 
-        return violations;
+        // Filter violations by the enabled level
+        return violations
+            .Where(v => _options.EnabledViolations.Contains(v.Type))
+            .ToList();
     }
 
     private void CheckMisplay(List<RuleViolation> violations, GameAction action, GameState state, int playerIndex, string player, int turn)
@@ -132,6 +148,21 @@ public class RuleAnalyzer
         }
     }
 
+    private void CheckIllegalDiscard(List<RuleViolation> violations, GameState state, string player, int turn)
+    {
+        if (state.ClueTokens >= 8)
+        {
+            violations.Add(new RuleViolation
+            {
+                Turn = turn,
+                Player = player,
+                Type = ViolationType.IllegalDiscard,
+                Severity = Severity.Critical,
+                Description = "Discarded at 8 clue tokens - must clue or play instead"
+            });
+        }
+    }
+
     private bool IsCardCritical(CardInHand card, GameState state, GameExport game)
     {
         // A card is critical if there's only one remaining copy
@@ -199,6 +230,20 @@ public class RuleAnalyzer
                 continue;
             }
 
+            // Check if card is "future trash" (suit is dead)
+            if (IsSuitDead(card.SuitIndex, card.Rank, state))
+            {
+                violations.Add(new RuleViolation
+                {
+                    Turn = turn,
+                    Player = player,
+                    Type = ViolationType.GoodTouchViolation,
+                    Severity = Severity.Warning,
+                    Description = $"Clue touched {suitName} {card.Rank} which can never be played (suit is dead)"
+                });
+                continue;
+            }
+
             // Check if card is a duplicate of another clued card elsewhere
             for (int p = 0; p < state.Hands.Count; p++)
             {
@@ -222,6 +267,24 @@ public class RuleAnalyzer
                     }
                 }
             }
+        }
+
+        // Check for duplicates within same hand
+        var sameHandDupes = touchedCards
+            .GroupBy(c => (c.SuitIndex, c.Rank))
+            .Where(g => g.Count() > 1);
+
+        foreach (var dupeGroup in sameHandDupes)
+        {
+            var suitName = GetSuitName(dupeGroup.Key.SuitIndex);
+            violations.Add(new RuleViolation
+            {
+                Turn = turn,
+                Player = player,
+                Type = ViolationType.GoodTouchViolation,
+                Severity = Severity.Warning,
+                Description = $"Clue touched duplicate {suitName} {dupeGroup.Key.Rank} in same hand"
+            });
         }
     }
 
@@ -270,8 +333,22 @@ public class RuleAnalyzer
         }
     }
 
-    // Phase 2: Missed Save - discarding when teammate has critical on chop
-    private void CheckMissedSave(List<RuleViolation> violations, GameAction action, GameState state, GameExport game, int playerIndex, string player, int turn)
+    // Helper: Get cards touched by a clue
+    private List<CardInHand> GetTouchedCards(List<CardInHand> hand, GameAction action)
+    {
+        if (action.Type == ActionType.ColorClue)
+        {
+            return hand.Where(c => c.SuitIndex == action.Value).ToList();
+        }
+        else if (action.Type == ActionType.RankClue)
+        {
+            return hand.Where(c => c.Rank == action.Value).ToList();
+        }
+        return new List<CardInHand>();
+    }
+
+    // Phase 2: Missed Save - taking an action when teammate has critical on chop
+    private void CheckMissedSave(List<RuleViolation> violations, GameAction action, GameState state, GameExport game, int playerIndex, string player, int turn, int actionType)
     {
         // Only check if we have clue tokens available
         if (state.ClueTokens == 0) return;
@@ -285,6 +362,18 @@ public class RuleAnalyzer
 
             var chopCard = GetChopCard(state.Hands[p]);
             if (chopCard == null) continue;
+
+            // For clue actions, check if this clue is saving THIS player's chop
+            if ((actionType == ActionType.ColorClue || actionType == ActionType.RankClue) && action.Target == p)
+            {
+                // The clue is targeting this player - check if it touches their chop card
+                var touchedCards = GetTouchedCards(state.Hands[p], action);
+                if (touchedCards.Any(c => c.DeckIndex == chopCard.DeckIndex))
+                {
+                    // This clue is saving their chop, skip MissedSave check for this player
+                    continue;
+                }
+            }
 
             // Check if chop card needs saving (is critical or is a 5 or is a 2 with no copies visible)
             bool needsSave = false;
@@ -317,16 +406,127 @@ public class RuleAnalyzer
             if (needsSave && !chopCard.HasAnyClue)
             {
                 var suitName = GetSuitName(chopCard.SuitIndex);
+                string actionDescription = actionType switch
+                {
+                    ActionType.Play => "Played instead of saving",
+                    ActionType.ColorClue or ActionType.RankClue => "Gave a clue instead of saving",
+                    _ => "Discarded instead of saving"
+                };
+
                 violations.Add(new RuleViolation
                 {
                     Turn = turn,
                     Player = player,
                     Type = ViolationType.MissedSave,
                     Severity = Severity.Warning,
-                    Description = $"Discarded instead of saving {game.Players[p]}'s {suitName} {chopCard.Rank} on chop ({saveReason})"
+                    Description = $"{actionDescription} {game.Players[p]}'s {suitName} {chopCard.Rank} on chop ({saveReason})"
                 });
             }
         }
+    }
+
+    // Phase 2: Double Discard Avoidance - discarding from chop after previous player discarded from chop
+    private void CheckDoubleDiscardAvoidance(
+        List<RuleViolation> violations,
+        GameAction action,
+        GameState state,
+        GameExport game,
+        int playerIndex,
+        string player,
+        int turn,
+        int actionIndex,
+        List<GameState> allStates)
+    {
+        if (actionIndex == 0) return;
+
+        var previousAction = game.Actions[actionIndex - 1];
+        if (previousAction.Type != ActionType.Discard) return;
+
+        var previousState = allStates[actionIndex - 1];
+        var numPlayers = game.Players.Count;
+        var previousPlayerIndex = (playerIndex - 1 + numPlayers) % numPlayers;
+
+        // Check if previous player discarded from chop
+        var previousHand = previousState.Hands[previousPlayerIndex];
+        var previousChopIndex = GetChopIndex(previousHand);
+        if (!previousChopIndex.HasValue) return;
+
+        var previousDiscardedCard = previousHand.FirstOrDefault(c => c.DeckIndex == previousAction.Target);
+        if (previousDiscardedCard == null) return;
+
+        var previousDiscardIndex = previousHand.FindIndex(c => c.DeckIndex == previousAction.Target);
+        if (previousDiscardIndex != previousChopIndex.Value) return;
+
+        // Current player also discarded - check if it's from chop
+        var currentHand = state.Hands[playerIndex];
+        var currentChopIndex = GetChopIndex(currentHand);
+        if (!currentChopIndex.HasValue) return;
+
+        var currentDiscardedCard = currentHand.FirstOrDefault(c => c.DeckIndex == action.Target);
+        if (currentDiscardedCard == null) return;
+
+        var currentDiscardIndex = currentHand.FindIndex(c => c.DeckIndex == action.Target);
+        if (currentDiscardIndex != currentChopIndex.Value) return;
+
+        // Check if current discard was safe (trash)
+        if (IsCardTrash(currentDiscardedCard, state)) return;
+
+        // This is a DDA violation
+        var suitName = GetSuitName(currentDiscardedCard.SuitIndex);
+        violations.Add(new RuleViolation
+        {
+            Turn = turn,
+            Player = player,
+            Type = ViolationType.DoubleDiscardAvoidance,
+            Severity = Severity.Warning,
+            Description = $"Discarded {suitName} {currentDiscardedCard.Rank} from chop after {game.Players[previousPlayerIndex]} discarded from chop - should avoid double discard"
+        });
+    }
+
+    // Get the chop index (oldest unclued card position)
+    private int? GetChopIndex(List<CardInHand> hand)
+    {
+        for (int i = 0; i < hand.Count; i++)
+        {
+            if (!hand[i].HasAnyClue)
+            {
+                return i;
+            }
+        }
+        return null;
+    }
+
+    // Check if a card is trash (already played or suit is dead)
+    private bool IsCardTrash(CardInHand card, GameState state)
+    {
+        // Already played
+        if (state.PlayStacks[card.SuitIndex] >= card.Rank)
+            return true;
+
+        // Suit is dead
+        if (IsSuitDead(card.SuitIndex, card.Rank, state))
+            return true;
+
+        return false;
+    }
+
+    // Check if a suit is dead at a specific rank
+    private bool IsSuitDead(int suitIndex, int targetRank, GameState state)
+    {
+        var currentStack = state.PlayStacks[suitIndex];
+
+        // Check each rank between current stack and target
+        for (int rank = currentStack + 1; rank < targetRank; rank++)
+        {
+            var totalCopies = CardCopiesPerRank[rank];
+            var discardedCount = state.DiscardPile.Count(c => c.SuitIndex == suitIndex && c.Rank == rank);
+
+            // If all copies of this intermediate rank are discarded, suit is dead
+            if (discardedCount >= totalCopies)
+                return true;
+        }
+
+        return false;
     }
 
     // Get the chop card (oldest unclued card, rightmost in hand representation)
@@ -420,9 +620,9 @@ public class RuleAnalyzer
         // Check if this was a blind play (card had no clues)
         if (!card.HasAnyClue)
         {
-            // Check if it was the "finesse position" (newest card = last in hand)
-            // TODO: Finesse position is actually "leftmost unclued card" - should find first unclued from end
-            bool isFinessePosition = cardIndex == hand.Count - 1;
+            // Check if it was the "finesse position" (newest unclued card)
+            var finessePositionIndex = GetFinessePositionIndex(hand);
+            bool isFinessePosition = finessePositionIndex.HasValue && cardIndex == finessePositionIndex.Value;
 
             // Check if play failed
             if (!IsCardPlayable(card, state))
@@ -501,10 +701,11 @@ public class RuleAnalyzer
             var checkHand = state.Hands[checkPlayer];
             if (checkHand.Count == 0) continue;
 
-            // Finesse position is the newest card (last in hand)
-            // TODO: Finesse position should be "leftmost unclued card" - if newest card is clued,
-            //       finesse position shifts to the next unclued slot
-            var finessePos = checkHand[checkHand.Count - 1];
+            // Finesse position is the newest unclued card
+            var finessePosIndex = GetFinessePositionIndex(checkHand);
+            if (!finessePosIndex.HasValue) continue;
+
+            var finessePos = checkHand[finessePosIndex.Value];
             if (finessePos.SuitIndex == finesseCard.SuitIndex && finessePos.Rank == finesseCard.Rank)
             {
                 finessePlayerIndex = checkPlayer;
@@ -549,6 +750,18 @@ public class RuleAnalyzer
     private bool IsCardPlayable(CardInHand card, GameState state)
     {
         return state.PlayStacks[card.SuitIndex] == card.Rank - 1;
+    }
+
+    // Helper: Get the finesse position index (newest unclued card)
+    private int? GetFinessePositionIndex(List<CardInHand> hand)
+    {
+        // Finesse position is the "newest unclued card" - newest cards are at higher indices
+        for (int i = hand.Count - 1; i >= 0; i--)
+        {
+            if (!hand[i].HasAnyClue)
+                return i;
+        }
+        return null;
     }
 
     public AnalysisSummary CreateSummary(List<RuleViolation> violations)

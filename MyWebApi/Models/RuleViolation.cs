@@ -40,6 +40,7 @@ public static class ViolationType
     public const string Misplay = "Misplay";
     public const string BadDiscard5 = "BadDiscard5";
     public const string BadDiscardCritical = "BadDiscardCritical";
+    public const string IllegalDiscard = "IllegalDiscard";
 
     // Phase 2
     public const string GoodTouchViolation = "GoodTouchViolation";
@@ -50,6 +51,12 @@ public static class ViolationType
     public const string MissedPrompt = "MissedPrompt";
     public const string MissedFinesse = "MissedFinesse";
     public const string BrokenFinesse = "BrokenFinesse";
+
+    // Level 2 - Intermediate Conventions
+    public const string FiveStall = "FiveStall";
+    public const string StompedFinesse = "StompedFinesse";
+    public const string WrongPrompt = "WrongPrompt";
+    public const string DoubleDiscardAvoidance = "DoubleDiscardAvoidance";
 }
 
 public static class Severity
