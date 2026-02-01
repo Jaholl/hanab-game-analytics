@@ -10,11 +10,21 @@ public class HanabiController : ControllerBase
 {
     private readonly IHanabiService _hanabiService;
     private readonly ILogger<HanabiController> _logger;
+    private readonly GameStateSimulator _simulator;
+    private readonly RuleAnalyzer _analyzer;
+
+    // Supported variants (standard 5-suit)
+    private static readonly HashSet<string> SupportedVariants = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "No Variant"
+    };
 
     public HanabiController(IHanabiService hanabiService, ILogger<HanabiController> logger)
     {
         _hanabiService = hanabiService;
         _logger = logger;
+        _simulator = new GameStateSimulator();
+        _analyzer = new RuleAnalyzer();
     }
 
     [HttpGet("history/{username}")]
@@ -38,6 +48,51 @@ public class HanabiController : ControllerBase
         catch (HttpRequestException ex)
         {
             _logger.LogError(ex, "Failed to fetch Hanabi history");
+            return StatusCode(502, "Failed to fetch data from hanab.live");
+        }
+    }
+
+    [HttpGet("game/{gameId}/analysis")]
+    public async Task<ActionResult<GameAnalysisResponse>> GetGameAnalysis(int gameId)
+    {
+        _logger.LogInformation("Analyzing game {GameId}", gameId);
+
+        try
+        {
+            var game = await _hanabiService.GetGameExportAsync(gameId);
+            if (game == null)
+            {
+                return NotFound($"Game #{gameId} could not be loaded");
+            }
+
+            var response = new GameAnalysisResponse
+            {
+                Game = game,
+                VariantName = game.Options.Variant
+            };
+
+            // Check if variant is supported
+            if (!SupportedVariants.Contains(game.Options.Variant))
+            {
+                response.VariantSupported = false;
+                response.Summary = new AnalysisSummary();
+                return Ok(response);
+            }
+
+            // Simulate game and analyze
+            var states = _simulator.SimulateGame(game);
+            var violations = _analyzer.AnalyzeGame(game, states);
+
+            response.Violations = violations;
+            response.Summary = _analyzer.CreateSummary(violations);
+            response.VariantSupported = true;
+            response.States = states;
+
+            return Ok(response);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Failed to fetch game {GameId}", gameId);
             return StatusCode(502, "Failed to fetch data from hanab.live");
         }
     }

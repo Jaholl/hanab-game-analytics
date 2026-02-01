@@ -1,0 +1,60 @@
+namespace MyWebApi.Models;
+
+public class RuleViolation
+{
+    public int Turn { get; set; }
+    public string Player { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
+    public string Severity { get; set; } = "warning"; // critical, warning, info
+    public string Description { get; set; } = string.Empty;
+    public CardIdentifier? Card { get; set; }  // Only populated for misplays
+}
+
+public class CardIdentifier
+{
+    public int DeckIndex { get; set; }  // Unique card identifier
+    public int SuitIndex { get; set; }  // 0-4 for R/Y/G/B/P
+    public int Rank { get; set; }       // 1-5
+}
+
+public class GameAnalysisResponse
+{
+    public GameExport Game { get; set; } = new();
+    public List<RuleViolation> Violations { get; set; } = new();
+    public AnalysisSummary Summary { get; set; } = new();
+    public bool VariantSupported { get; set; } = true;
+    public string? VariantName { get; set; }
+    public List<GameState> States { get; set; } = new();
+}
+
+public class AnalysisSummary
+{
+    public int TotalViolations { get; set; }
+    public Dictionary<string, int> BySeverity { get; set; } = new();
+    public Dictionary<string, int> ByType { get; set; } = new();
+}
+
+public static class ViolationType
+{
+    // Phase 1
+    public const string Misplay = "Misplay";
+    public const string BadDiscard5 = "BadDiscard5";
+    public const string BadDiscardCritical = "BadDiscardCritical";
+
+    // Phase 2
+    public const string GoodTouchViolation = "GoodTouchViolation";
+    public const string MCVPViolation = "MCVPViolation";
+    public const string MissedSave = "MissedSave";
+
+    // Phase 3 - Prompt/Finesse
+    public const string MissedPrompt = "MissedPrompt";
+    public const string MissedFinesse = "MissedFinesse";
+    public const string BrokenFinesse = "BrokenFinesse";
+}
+
+public static class Severity
+{
+    public const string Critical = "critical";
+    public const string Warning = "warning";
+    public const string Info = "info";
+}
