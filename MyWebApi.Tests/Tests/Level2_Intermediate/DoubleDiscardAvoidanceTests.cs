@@ -27,6 +27,7 @@ public class DoubleDiscardAvoidanceTests
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,R2,Y1,B1,G1, R3,Y2,B2,G2,P1, R4,Y3")
             // Alice's chop is R1 (index 0), Bob's chop is R3 (index 5)
+            .AtIntermediateLevel() // DDA is a Level 2 convention
             .Discard(0) // Alice discards from chop
             .Discard(5) // Bob discards from chop - DDA violation!
             .BuildAndAnalyze();

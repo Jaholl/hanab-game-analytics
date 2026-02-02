@@ -25,11 +25,13 @@ public class PromptTests
     public void DiscardWithPlayableCluedCard_CreatesViolation()
     {
         // Alice has R1 clued and playable, but discards instead
+        // In 2-player, Alice acts first, so we need Alice to discard, then Bob clues, then Alice discards again
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,R2,Y1,B1,G1, R3,Y2,B2,G2,P1, R4,Y3")
-            .RankClue(0, 1)  // Bob clues Alice "1" - R1 is playable
-            .Discard(1)      // Alice discards R2 instead of playing R1
+            .Discard(1)      // Alice discards R2 (turn 1)
+            .RankClue(0, 1)  // Bob clues Alice "1" - R1 is playable (turn 2)
+            .Discard(2)      // Alice discards Y1 instead of playing R1 (turn 3)
             .BuildAndAnalyze();
 
         // Assert
@@ -123,8 +125,9 @@ public class PromptTests
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,R2,Y1,B1,G1, R3,Y2,B2,G2,P1, R4,Y3")
-            .RankClue(0, 1)
-            .Discard(1)
+            .Discard(1)      // Alice discards R2 (turn 1)
+            .RankClue(0, 1)  // Bob clues Alice "1" (turn 2)
+            .Discard(2)      // Alice discards Y1 instead of playing R1 (turn 3)
             .BuildAndAnalyze();
 
         violations.Should().ContainViolationWithSeverity(ViolationType.MissedPrompt, Severity.Warning);
@@ -136,8 +139,9 @@ public class PromptTests
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,R2,Y1,B1,G1, R3,Y2,B2,G2,P1, R4,Y3")
-            .RankClue(0, 1)
-            .Discard(1)
+            .Discard(1)      // Alice discards R2 (turn 1)
+            .RankClue(0, 1)  // Bob clues Alice "1" (turn 2)
+            .Discard(2)      // Alice discards Y1 instead of playing R1 (turn 3)
             .BuildAndAnalyze();
 
         var violation = violations.FirstOfType(ViolationType.MissedPrompt);

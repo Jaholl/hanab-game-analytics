@@ -65,3 +65,26 @@ public static class Severity
     public const string Warning = "warning";
     public const string Info = "info";
 }
+
+public record PendingFinesse
+{
+    public int SetupTurn { get; init; }
+    public int ClueGiverIndex { get; init; }
+    public int TargetPlayerIndex { get; init; }
+    public int FinessePlayerIndex { get; init; }
+    public int NeededSuitIndex { get; init; }
+    public int NeededRank { get; init; }
+    public bool IsResolved { get; set; }
+    public bool WasStomped { get; set; }
+}
+
+public record ClueHistoryEntry
+{
+    public int Turn { get; init; }
+    public int ClueGiverIndex { get; init; }
+    public int TargetPlayerIndex { get; init; }
+    public ActionType ClueType { get; init; }
+    public int ClueValue { get; init; }
+    public List<int> TouchedDeckIndices { get; init; } = new();
+    public int? FocusDeckIndex { get; init; }
+}

@@ -39,6 +39,7 @@ public class UrgencyPriorityTests
     public void GavePlayClueWhenSaveNeeded_CreatesViolation()
     {
         // Player gives a play clue instead of urgent save
+        // In 3-player: Alice (0), Bob (1), Charlie (2), Alice (0), ...
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob", "Charlie")
             .WithDeck(
@@ -46,7 +47,8 @@ public class UrgencyPriorityTests
                 "R2,Y2,B2,G2,P2," +  // Bob
                 "R5,Y3,B3,G3,P3," +  // Charlie has R5 on chop
                 "R3,Y4")
-            .RankClue(0, 1)  // Bob gives play clue to Alice instead of saving Charlie's 5
+            .Discard(1)       // Alice discards Y1 (turn 1)
+            .RankClue(0, 1)   // Bob gives play clue to Alice instead of saving Charlie's 5 (turn 2)
             .BuildAndAnalyze();
 
         // Bob should have saved Charlie's 5 first

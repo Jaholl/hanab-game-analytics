@@ -124,10 +124,10 @@ public class GoodTouchTests
 
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
-            .WithDeck("R2,R2,R3,B1,G1, R4,Y2,B2,G2,P1, R5,Y3")
-            .Discard(0) // Alice discards R2
-            .Discard(1) // Bob discards R2 - Red suit is now dead at rank 1!
-            // Alice now has: R3(future trash), B1, G1, new cards
+            .WithDeck("R2,R3,Y1,B1,G1, R2,Y2,B2,G2,P1, R4,Y3")  // R2 in both hands
+            .Discard(0) // Alice discards R2 (first copy)
+            .Discard(5) // Bob discards R2 (second copy) - Red suit now dead at rank 1!
+            // Alice now has: R3(future trash), Y1, B1, G1, new card
             .RankClue(0, 3) // Bob clues Alice "3" - touches R3 (future trash!)
             .BuildAndAnalyze();
 
@@ -186,30 +186,24 @@ public class GoodTouchTests
     public void MultipleTrashTouched_CreatesMultipleViolations()
     {
         // If a clue touches multiple trash cards, each should be reported
+        // 3-player: turn order is Alice (0), Bob (1), Charlie (2), Alice (0)...
         var (game, states, violations) = GameBuilder.Create()
-            .WithPlayers("Alice", "Bob")
-            .WithDeck("R1,Y1,R1,Y1,G1, R2,Y2,B2,G2,P1, R3,Y3")
-            .Play(0) // Alice plays R1
-            .Play(5) // Bob plays R2 (wait, needs R1 first)
-            .BuildAndAnalyze();
-
-        // Simpler approach - play both R1 and Y1, then clue 1s
-        var (game2, states2, violations2) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob", "Charlie")
             .WithDeck(
-                "R1,Y1,G1,B1,P1," +    // Alice
-                "R2,Y2,G2,B2,P2," +    // Bob
-                "R1,Y1,G3,B3,P3," +    // Charlie has R1, Y1 (will be trash)
-                "R3,Y3")
-            .Play(0) // Alice plays R1
-            .Play(5) // Bob plays R2
-            .Play(1) // Alice plays Y1
-            .Play(6) // Bob plays Y2
-            // Now Charlie has R1(trash), Y1(trash), G3, B3, P3
-            .RankClue(2, 1) // Alice clues Charlie "1" - touches R1(trash) and Y1(trash)
+                "R1,Y1,G1,B1,P1," +    // Alice (deck 0-4)
+                "R2,Y2,G2,B2,P2," +    // Bob (deck 5-9)
+                "R1,Y1,G3,B3,P3," +    // Charlie has R1(10), Y1(11) - will be trash
+                "R3,Y3,B4,G4")         // Draw pile
+            .Play(0)        // Turn 0: Alice plays R1 (Red stack = 1)
+            .Play(5)        // Turn 1: Bob plays R2 (Red stack = 2)
+            .Discard(12)    // Turn 2: Charlie discards G3
+            .Play(1)        // Turn 3: Alice plays Y1 (Yellow stack = 1)
+            .Play(6)        // Turn 4: Bob plays Y2 (Yellow stack = 2)
+            .Discard(13)    // Turn 5: Charlie discards B3
+            .RankClue(2, 1) // Turn 6: Alice clues Charlie "1" - touches R1(trash) and Y1(trash)
             .BuildAndAnalyze();
 
         // Assert - should have violations for both trash cards
-        violations2.OfType(ViolationType.GoodTouchViolation).Should().HaveCountGreaterOrEqualTo(2);
+        violations.OfType(ViolationType.GoodTouchViolation).Should().HaveCountGreaterOrEqualTo(2);
     }
 }

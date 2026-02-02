@@ -56,8 +56,8 @@ public class BlameAttributionTests
             .WithPlayers("Alice", "Bob", "Charlie")
             .WithDeck(
                 "R3,Y1,B1,G1,P1," +
-                "R1,Y2,B2,G2,P2," +  // Bob HAS R1
-                "R2,Y3,B3,G3,P3," +
+                "Y2,B2,G2,P2,R1," +  // Bob HAS R1 in finesse pos (slot 4, deck idx 9)
+                "Y3,B3,G3,P3,R2," +  // Charlie - R2 is focus (slot 4)
                 "R4,Y4")
             .ColorClue(2, "Red")  // Valid finesse
             .Discard(5)           // Bob discards instead of blind-playing
@@ -74,11 +74,11 @@ public class BlameAttributionTests
             .WithPlayers("Alice", "Bob", "Charlie")
             .WithDeck(
                 "R3,Y1,B1,G1,P1," +
-                "R1,Y2,B2,G2,P2," +  // R1 at slot 0 (finesse pos)
-                "R2,Y3,B3,G3,P3," +
+                "Y2,B2,G2,P2,R1," +  // R1 at slot 4 (finesse pos, deck idx 9)
+                "Y3,B3,G3,P3,R2," +  // R2 at slot 4
                 "R4,Y4")
             .ColorClue(2, "Red")
-            .Play(6)  // Bob plays Y2 (slot 1) instead of R1 (slot 0)
+            .Play(5)  // Bob plays Y2 (slot 0) instead of R1 (slot 4)
             .BuildAndAnalyze();
 
         // Bob misread the finesse
@@ -184,8 +184,8 @@ public class BlameAttributionTests
             .WithPlayers("Alice", "Bob", "Charlie")
             .WithDeck(
                 "R3,Y1,B1,G1,P1," +
-                "R1,Y2,B2,G2,P2," +
-                "R2,Y3,B3,G3,P3," +
+                "Y2,B2,G2,P2,R1," +  // Bob - R1 in finesse pos (slot 4, deck idx 9)
+                "Y3,B3,G3,P3,R2," +  // Charlie - R2 is focus (slot 4)
                 "R4,Y4")
             .ColorClue(2, "Red")  // Alice clues (turn 1)
             .Discard(5)           // Bob discards (turn 2) - should be blamed!
@@ -200,13 +200,14 @@ public class BlameAttributionTests
     [Fact]
     public void BlameCorrectPlayerInFourPlayerScenario()
     {
+        // 4-player game has 4-card hands
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob", "Charlie", "Diana")
             .WithDeck(
-                "R4,Y1,B1,G1," +
-                "R1,Y2,B2,G2," +
-                "R3,Y3,B3,G3," +
-                "R2,Y4,B4,G4," +
+                "R4,Y1,B1,G1," +      // Alice (0-3)
+                "Y2,B2,G2,R1," +      // Bob - R1 in finesse pos (slot 3, deck idx 7)
+                "R3,Y3,B3,G3," +      // Charlie (8-11)
+                "Y4,B4,G4,R2," +      // Diana - R2 is focus (slot 3, deck idx 15)
                 "P1,P2")
             .ColorClue(3, "Red")  // Alice clues Diana's R2
             // Bob should respond (has R1)
@@ -223,12 +224,12 @@ public class BlameAttributionTests
             .WithPlayers("Alice", "Bob", "Charlie")
             .WithDeck(
                 "R3,Y1,B1,G1,P1," +
-                "R1,Y2,B2,G2,P2," +
-                "R2,Y3,B3,G3,P3," +
+                "Y2,B2,G2,P2,R1," +  // Bob - R1 in finesse pos (slot 4, deck idx 9)
+                "Y3,B3,G3,P3,R2," +  // Charlie - R2 is focus (slot 4, deck idx 14)
                 "R4,Y4")
             .ColorClue(2, "Red")  // Alice
-            .Play(5)              // Bob blind-plays R1
-            .Play(10)             // Charlie plays R2
+            .Play(9)              // Bob blind-plays R1 from finesse pos
+            .Play(14)             // Charlie plays R2
             .BuildAndAnalyze();
 
         violations.Should().NotContainViolation(ViolationType.MissedFinesse);

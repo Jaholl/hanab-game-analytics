@@ -133,8 +133,8 @@ public class RuleAnalyzer
         // Check for discarding a critical card (last remaining copy)
         if (IsCardCritical(card, state, game))
         {
-            // Only flag if the card is still needed (hasn't been played)
-            if (state.PlayStacks[card.SuitIndex] < card.Rank)
+            // Only flag if the card is still needed (hasn't been played) and suit isn't dead
+            if (state.PlayStacks[card.SuitIndex] < card.Rank && !IsSuitDead(card.SuitIndex, card.Rank, state))
             {
                 violations.Add(new RuleViolation
                 {
@@ -289,6 +289,7 @@ public class RuleAnalyzer
     }
 
     // Phase 2: MCVP - Minimum Clue Value Principle - clue must touch at least one new card
+    // Exception (Level 2+): "Tempo clues" that re-touch playable cards are valid (they signal "play now")
     private void CheckMCVP(List<RuleViolation> violations, GameAction action, GameState state, GameExport game, int playerIndex, string player, int turn)
     {
         var targetPlayer = action.Target;
@@ -296,8 +297,10 @@ public class RuleAnalyzer
 
         var targetHand = state.Hands[targetPlayer];
         var newCardsTouched = 0;
+        var touchedPlayableCards = 0;
 
         // Count how many new (previously unclued) cards are touched
+        // Also check if any touched cards are already clued AND playable (tempo clue)
         foreach (var card in targetHand)
         {
             bool isTouched = false;
@@ -310,27 +313,39 @@ public class RuleAnalyzer
                 isTouched = true;
             }
 
-            if (isTouched && !card.HasAnyClue)
+            if (isTouched)
             {
-                newCardsTouched++;
+                if (!card.HasAnyClue)
+                {
+                    newCardsTouched++;
+                }
+                else if (IsCardPlayable(card, state))
+                {
+                    // Already clued card that is playable - this could be a tempo clue (Level 2+)
+                    touchedPlayableCards++;
+                }
             }
         }
 
-        if (newCardsTouched == 0)
-        {
-            var clueType = action.Type == ActionType.ColorClue
-                ? GetSuitName(action.Value)
-                : action.Value.ToString();
+        // Not a violation if new cards were touched (normal clue)
+        if (newCardsTouched > 0) return;
 
-            violations.Add(new RuleViolation
-            {
-                Turn = turn,
-                Player = player,
-                Type = ViolationType.MCVPViolation,
-                Severity = Severity.Warning,
-                Description = $"Clue ({clueType}) only touched already-clued cards - no new information given"
-            });
-        }
+        // At Level 2+, re-touching a playable card is a tempo clue, not a violation
+        bool isTempoClueLevel = _options.Level >= ConventionLevel.Level2_Intermediate;
+        if (isTempoClueLevel && touchedPlayableCards > 0) return;
+
+        var clueType = action.Type == ActionType.ColorClue
+            ? GetSuitName(action.Value)
+            : action.Value.ToString();
+
+        violations.Add(new RuleViolation
+        {
+            Turn = turn,
+            Player = player,
+            Type = ViolationType.MCVPViolation,
+            Severity = Severity.Warning,
+            Description = $"Clue ({clueType}) only touched already-clued cards - no new information given"
+        });
     }
 
     // Helper: Get cards touched by a clue
@@ -348,7 +363,7 @@ public class RuleAnalyzer
     }
 
     // Phase 2: Missed Save - taking an action when teammate has critical on chop
-    private void CheckMissedSave(List<RuleViolation> violations, GameAction action, GameState state, GameExport game, int playerIndex, string player, int turn, int actionType)
+    private void CheckMissedSave(List<RuleViolation> violations, GameAction action, GameState state, GameExport game, int playerIndex, string player, int turn, ActionType actionType)
     {
         // Only check if we have clue tokens available
         if (state.ClueTokens == 0) return;
@@ -755,7 +770,8 @@ public class RuleAnalyzer
     // Helper: Get the finesse position index (newest unclued card)
     private int? GetFinessePositionIndex(List<CardInHand> hand)
     {
-        // Finesse position is the "newest unclued card" - newest cards are at higher indices
+        // Finesse position is the "newest unclued card"
+        // In this representation: cards are dealt/drawn with Add(), so newest is at highest index
         for (int i = hand.Count - 1; i >= 0; i--)
         {
             if (!hand[i].HasAnyClue)

@@ -130,10 +130,10 @@ public class BadDiscardTests
         // Discard both R2s, then R3 becomes trash
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
-            .WithDeck("R2,R2,R3,B1,G1, R4,Y2,B2,G2,P1, R5,Y3")
+            .WithDeck("R2,R3,Y1,B1,G1, R2,Y2,B2,G2,P1, R4,Y3")  // R2 in both hands
             .Discard(0) // Alice discards R2 (first copy)
-            .Discard(1) // Bob discards R2 (second copy - Red suit now dead at rank 1!)
-            .Discard(2) // Alice discards R3 - should be fine since Red suit is dead
+            .Discard(5) // Bob discards R2 (second copy - Red suit now dead at rank 1!)
+            .Discard(1) // Alice discards R3 - should be fine since Red suit is dead
             .BuildAndAnalyze();
 
         // Assert - R3 discard should NOT be a violation since suit is dead

@@ -26,6 +26,7 @@ public class TempoClueTests
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,Y2,Y3,B1,G1, R3,Y4,B2,G2,P1, R4,Y5")
+            .AtIntermediateLevel()  // Tempo clues are a Level 2 concept
             .RankClue(0, 1)  // Bob clues Alice "1" - R1 is clued and playable
             .Discard(5)      // Alice discards (doesn't play R1)
             .RankClue(0, 1)  // Bob re-clues "1" - tempo clue saying "play it NOW"
@@ -45,6 +46,7 @@ public class TempoClueTests
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R3,Y2,Y3,B1,G1, R4,Y4,B2,G2,P1, R5,Y5")
+            .AtIntermediateLevel()  // Tempo clues are a Level 2 concept
             .RankClue(0, 3)  // Bob clues Alice "3" - R3 is clued but not playable
             .Discard(5)      // Alice discards
             .RankClue(0, 3)  // Bob re-clues "3" - NOT tempo (card not playable), MCVP violation
@@ -61,6 +63,7 @@ public class TempoClueTests
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,Y2,Y3,B1,G1, R3,Y4,B2,G2,P1, R4,Y5")
+            .AtIntermediateLevel()  // Tempo clues are a Level 2 concept
             .ColorClue(0, "Red")  // Bob clues Alice "Red" - R1 clued and playable
             .Discard(5)            // Alice discards
             .ColorClue(0, "Red")  // Bob re-clues "Red" - tempo clue
@@ -78,6 +81,7 @@ public class TempoClueTests
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,Y2,Y3,B1,G1, R3,Y4,B2,G2,P1, R4,Y5")
+            .AtIntermediateLevel()  // Tempo clues are a Level 2 concept
             .RankClue(0, 1)  // Bob clues Alice "1"
             .Discard(5)      // Alice discards (missing the prompt)
             .RankClue(0, 1)  // Bob tempo clue
@@ -134,6 +138,7 @@ public class TempoClueTests
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,Y1,G1,B1,P1, R2,Y2,G2,B2,P2, R3,Y3")
+            .AtIntermediateLevel()  // Tempo clues are a Level 2 concept
             // Alice has R1, Y1, G1, B1, P1 - all playable 1s
             .RankClue(0, 1)   // Bob clues all 1s at once
             .Discard(5)       // Alice discards instead of playing

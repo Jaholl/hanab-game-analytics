@@ -27,4 +27,33 @@ public class HanabiService : IHanabiService
 
         return result ?? new HanabiHistoryResponse();
     }
+
+    public async Task<GameExport?> GetGameExportAsync(int gameId)
+    {
+        var url = $"https://hanab.live/export/{gameId}";
+        _logger.LogInformation("Fetching game export from {Url}", url);
+
+        try
+        {
+            var response = await _httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Failed to fetch game {GameId}: {StatusCode}", gameId, response.StatusCode);
+                return null;
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+            var result = JsonSerializer.Deserialize<GameExport>(json, options);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching game {GameId}", gameId);
+            return null;
+        }
+    }
 }

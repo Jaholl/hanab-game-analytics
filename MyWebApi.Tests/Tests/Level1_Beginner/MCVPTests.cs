@@ -68,15 +68,18 @@ public class MCVPTests
     public void ReClueAfterColorClue_Rank_CreatesViolation()
     {
         // Color clue, then rank clue to same card
+        // In 2-player: Alice acts first, so we need Alice to discard, then Bob clues
+        // Alice has R1 as the ONLY 1 in her hand so the second clue adds no new info
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
-            .WithDeck("R1,Y2,Y3,B1,G1, R3,Y4,B2,G2,P1, R4,Y5")
-            .ColorClue(0, "Red") // Bob clues Alice "Red" - touches R1
-            .Discard(5)          // Alice discards
-            .RankClue(0, 1)      // Bob clues Alice "1" - R1 already fully known!
+            .WithDeck("R1,Y2,Y3,B2,G2, R3,Y4,B3,G3,P1, R4,Y5")  // Alice: R1, Y2, Y3, B2, G2 (no B1, G1)
+            .Discard(1)          // Alice discards Y2 (turn 1)
+            .ColorClue(0, "Red") // Bob clues Alice "Red" - touches R1 (turn 2)
+            .Discard(2)          // Alice discards Y3 (turn 3)
+            .RankClue(0, 1)      // Bob clues Alice "1" - R1 is the only 1, already clued! (turn 4)
             .BuildAndAnalyze();
 
-        // Assert - if R1 is the only 1, this adds no new info
+        // Assert - R1 is the only 1, so cluing "1" only touches already-clued card
         violations.Should().ContainViolation(ViolationType.MCVPViolation);
     }
 

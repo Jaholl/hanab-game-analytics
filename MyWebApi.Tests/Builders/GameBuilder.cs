@@ -15,6 +15,7 @@ public class GameBuilder
     private int _strikes = 0;
     private int[] _playStacks = new int[5];
     private string _variant = "No Variant";
+    private AnalyzerOptions? _analyzerOptions;
 
     public static GameBuilder Create() => new();
 
@@ -86,6 +87,42 @@ public class GameBuilder
     public GameBuilder WithVariant(string variant)
     {
         _variant = variant;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the analyzer to use Level 0 (basic rules only).
+    /// </summary>
+    public GameBuilder AtBasicLevel()
+    {
+        _analyzerOptions = AnalyzerOptions.Basic;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the analyzer to use Level 1 (beginner conventions).
+    /// </summary>
+    public GameBuilder AtBeginnerLevel()
+    {
+        _analyzerOptions = AnalyzerOptions.Beginner;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the analyzer to use Level 2 (intermediate conventions).
+    /// </summary>
+    public GameBuilder AtIntermediateLevel()
+    {
+        _analyzerOptions = AnalyzerOptions.Intermediate;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the analyzer to use Level 3 (advanced conventions).
+    /// </summary>
+    public GameBuilder AtAdvancedLevel()
+    {
+        _analyzerOptions = AnalyzerOptions.ForLevel(ConventionLevel.Level3_Advanced);
         return this;
     }
 
@@ -194,7 +231,7 @@ public class GameBuilder
     public (GameExport game, List<GameState> states, List<RuleViolation> violations) BuildAndAnalyze()
     {
         var (game, states) = Build();
-        var analyzer = new RuleAnalyzer();
+        var analyzer = new RuleAnalyzer(_analyzerOptions);
         var violations = analyzer.AnalyzeGame(game, states);
         return (game, states, violations);
     }

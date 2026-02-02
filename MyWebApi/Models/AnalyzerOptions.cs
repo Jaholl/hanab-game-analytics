@@ -60,6 +60,27 @@ public class AnalyzerOptions
             ViolationType.WrongPrompt,
             ViolationType.DoubleDiscardAvoidance
         },
+        ConventionLevel.Level3_Advanced => new HashSet<string>
+        {
+            // Level 0 violations
+            ViolationType.Misplay,
+            ViolationType.BadDiscard5,
+            ViolationType.BadDiscardCritical,
+            ViolationType.IllegalDiscard,
+            // Level 1 violations
+            ViolationType.GoodTouchViolation,
+            ViolationType.MCVPViolation,
+            ViolationType.MissedSave,
+            ViolationType.MissedPrompt,
+            ViolationType.MissedFinesse,
+            ViolationType.BrokenFinesse,
+            // Level 2 violations
+            ViolationType.FiveStall,
+            ViolationType.StompedFinesse,
+            ViolationType.WrongPrompt,
+            ViolationType.DoubleDiscardAvoidance
+            // Level 3 additions can be added here
+        },
         _ => new HashSet<string>()
     };
 

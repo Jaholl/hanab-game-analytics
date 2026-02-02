@@ -30,8 +30,8 @@ public class FinesseTests
             .WithPlayers("Alice", "Bob", "Charlie")
             .WithDeck(
                 "R3,Y1,B1,G1,P1," +  // Alice (clue giver)
-                "R1,Y2,B2,G2,P2," +  // Bob - R1 in slot 0 (newest = finesse pos)
-                "R2,Y3,B3,G3,P3," +  // Charlie - R2 is focus
+                "Y2,B2,G2,P2,R1," +  // Bob - R1 in slot 4 (newest = finesse pos)
+                "Y3,B3,G3,P3,R2," +  // Charlie - R2 is focus (slot 4)
                 "R4,Y4")
             .ColorClue(2, "Red")  // Alice clues Charlie "Red" - points to R2 (one-away)
             // Bob should see: R2 clued, I have something in finesse pos to connect
@@ -46,17 +46,17 @@ public class FinesseTests
     [Fact]
     public void InvalidFinesse_WrongCardInFinessePos_BlameClueGiver()
     {
-        // Setup: Alice clues R2, but Bob has Y1 in finesse position (not R1)
+        // Setup: Alice clues R2, but Bob has Y3 in finesse position (not R1, not playable)
         // The "finesse" is invalid because the connecting card isn't there
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob", "Charlie")
             .WithDeck(
                 "R3,Y1,B1,G1,P1," +  // Alice
-                "Y1,Y2,B2,G2,P2," +  // Bob - Y1 in finesse pos (WRONG!)
-                "R2,Y3,B3,G3,P3," +  // Charlie - R2 is focus
-                "R4,Y4")
+                "Y2,B2,G2,P2,Y3," +  // Bob - Y3 in finesse pos slot 4 (WRONG, not playable!)
+                "Y4,B3,G3,P3,R2," +  // Charlie - R2 is focus at slot 4
+                "R4,Y5")
             .ColorClue(2, "Red")  // Alice clues R2 - looks like finesse but invalid
-            .Play(5)              // Bob tries to blind-play, misplays Y1
+            .Play(9)              // Bob tries to blind-play from finesse pos, misplays Y3
             .BuildAndAnalyze();
 
         // Assert - Alice should be blamed (bad clue, invalid finesse setup)
@@ -76,12 +76,12 @@ public class FinesseTests
             .WithPlayers("Alice", "Bob", "Charlie")
             .WithDeck(
                 "R3,Y1,B1,G1,P1," +  // Alice
-                "R1,Y2,B2,G2,P2," +  // Bob - R1 in finesse pos
-                "R2,Y3,B3,G3,P3," +  // Charlie - R2 is focus
+                "Y2,B2,G2,P2,R1," +  // Bob - R1 in finesse pos (slot 4, deck idx 9)
+                "Y3,B3,G3,P3,R2," +  // Charlie - R2 is focus (slot 4, deck idx 14)
                 "R4,Y4")
             .ColorClue(2, "Red")  // Alice clues R2 (finesse)
-            .Play(5)              // Bob blind-plays R1 - correct!
-            .Play(10)             // Charlie plays R2
+            .Play(9)              // Bob blind-plays R1 from finesse pos - correct!
+            .Play(14)             // Charlie plays R2
             .BuildAndAnalyze();
 
         // Assert - no finesse violations
@@ -97,11 +97,11 @@ public class FinesseTests
             .WithPlayers("Alice", "Bob", "Charlie")
             .WithDeck(
                 "R3,Y1,B1,G1,P1," +  // Alice
-                "R1,Y2,B2,G2,P2," +  // Bob - R1 at index 5 (slot 0, finesse)
-                "R2,Y3,B3,G3,P3," +  // Charlie
+                "Y2,B2,G2,P2,R1," +  // Bob - R1 at slot 4 (finesse pos, deck idx 9)
+                "Y3,B3,G3,P3,R2," +  // Charlie - R2 at slot 4
                 "R4,Y4")
             .ColorClue(2, "Red")  // Alice finesse
-            .Play(6)              // Bob plays Y2 (wrong slot!) instead of R1
+            .Play(5)              // Bob plays Y2 (slot 0, wrong!) instead of R1 (slot 4)
             .BuildAndAnalyze();
 
         // Assert - Bob misread the finesse
@@ -185,8 +185,8 @@ public class FinesseTests
             .WithPlayers("Alice", "Bob", "Charlie")
             .WithDeck(
                 "R3,Y1,B1,G1,P1," +
-                "R1,Y2,B2,G2,P2," +
-                "R2,Y3,B3,G3,P3," +
+                "Y2,B2,G2,P2,R1," +  // Bob - R1 in finesse pos (slot 4, deck idx 9)
+                "Y3,B3,G3,P3,R2," +  // Charlie - R2 is focus (slot 4)
                 "R4,Y4")
             .ColorClue(2, "Red")
             .Discard(5)
@@ -199,15 +199,16 @@ public class FinesseTests
     [Fact]
     public void BrokenFinesse_HasWarningSeverity()
     {
+        // Bob has Y3 in finesse pos (not playable, not R1)
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob", "Charlie")
             .WithDeck(
                 "R3,Y1,B1,G1,P1," +
-                "Y1,Y2,B2,G2,P2," +  // Wrong card in finesse pos
-                "R2,Y3,B3,G3,P3," +
-                "R4,Y4")
+                "Y2,B2,G2,P2,Y3," +  // Bob - Y3 in finesse pos slot 4 (NOT playable!)
+                "Y4,B3,G3,P3,R2," +  // Charlie - R2 is focus at slot 4
+                "R4,Y5")
             .ColorClue(2, "Red")
-            .Play(5)  // Bob plays Y1 (misplay)
+            .Play(9)  // Bob plays Y3 from finesse pos (misplay - needs Y1,Y2 first)
             .BuildAndAnalyze();
 
         // Broken finesse is a warning
