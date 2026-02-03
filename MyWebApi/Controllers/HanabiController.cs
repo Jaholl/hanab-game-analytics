@@ -11,7 +11,6 @@ public class HanabiController : ControllerBase
     private readonly IHanabiService _hanabiService;
     private readonly ILogger<HanabiController> _logger;
     private readonly GameStateSimulator _simulator;
-    private readonly RuleAnalyzer _analyzer;
 
     // Supported variants (standard 5-suit)
     private static readonly HashSet<string> SupportedVariants = new(StringComparer.OrdinalIgnoreCase)
@@ -24,7 +23,6 @@ public class HanabiController : ControllerBase
         _hanabiService = hanabiService;
         _logger = logger;
         _simulator = new GameStateSimulator();
-        _analyzer = new RuleAnalyzer();
     }
 
     [HttpGet("history/{username}")]
@@ -53,9 +51,19 @@ public class HanabiController : ControllerBase
     }
 
     [HttpGet("game/{gameId}/analysis")]
-    public async Task<ActionResult<GameAnalysisResponse>> GetGameAnalysis(int gameId)
+    public async Task<ActionResult<GameAnalysisResponse>> GetGameAnalysis(
+        int gameId,
+        [FromQuery] int level = 1)
     {
-        _logger.LogInformation("Analyzing game {GameId}", gameId);
+        _logger.LogInformation("Analyzing game {GameId} at level {Level}", gameId, level);
+
+        // Validate and convert level parameter
+        if (level < 0 || level > 2)
+        {
+            return BadRequest("Level must be 0, 1, or 2");
+        }
+        var conventionLevel = (ConventionLevel)level;
+        var options = AnalyzerOptions.ForLevel(conventionLevel);
 
         try
         {
@@ -79,12 +87,13 @@ public class HanabiController : ControllerBase
                 return Ok(response);
             }
 
-            // Simulate game and analyze
+            // Simulate game and analyze with specified level
             var states = _simulator.SimulateGame(game);
-            var violations = _analyzer.AnalyzeGame(game, states);
+            var analyzer = new RuleAnalyzer(options);
+            var violations = analyzer.AnalyzeGame(game, states);
 
             response.Violations = violations;
-            response.Summary = _analyzer.CreateSummary(violations);
+            response.Summary = analyzer.CreateSummary(violations);
             response.VariantSupported = true;
             response.States = states;
 

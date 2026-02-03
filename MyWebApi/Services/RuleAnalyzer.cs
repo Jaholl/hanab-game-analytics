@@ -27,6 +27,7 @@ public class RuleAnalyzer
     public List<RuleViolation> AnalyzeGame(GameExport game, List<GameState> states)
     {
         var violations = new List<RuleViolation>();
+        var clueHistory = new List<ClueHistoryEntry>(); // Track clues for blame attribution
 
         for (int i = 0; i < game.Actions.Count; i++)
         {
@@ -41,7 +42,7 @@ public class RuleAnalyzer
             switch (action.Type)
             {
                 case ActionType.Play:
-                    CheckMisplay(violations, action, stateBefore, currentPlayerIndex, currentPlayer, i + 1);
+                    CheckMisplayWithBlame(violations, action, stateBefore, game, currentPlayerIndex, currentPlayer, i + 1, clueHistory);
                     CheckBrokenFinesse(violations, action, stateBefore, currentPlayerIndex, currentPlayer, i + 1);
                     CheckMissedSave(violations, action, stateBefore, game, currentPlayerIndex, currentPlayer, i + 1, ActionType.Play);
                     break;
@@ -54,6 +55,8 @@ public class RuleAnalyzer
                     break;
                 case ActionType.ColorClue:
                 case ActionType.RankClue:
+                    // Track clue for blame attribution
+                    TrackClue(clueHistory, action, stateBefore, game, currentPlayerIndex, i + 1);
                     CheckGoodTouch(violations, action, stateBefore, game, currentPlayerIndex, currentPlayer, i + 1);
                     CheckMCVP(violations, action, stateBefore, game, currentPlayerIndex, currentPlayer, i + 1);
                     CheckFinesseSetup(violations, action, stateBefore, game, currentPlayerIndex, currentPlayer, i + 1, i, states);
@@ -99,6 +102,177 @@ public class RuleAnalyzer
                 }
             });
         }
+    }
+
+    // Track clues for blame attribution
+    private void TrackClue(List<ClueHistoryEntry> clueHistory, GameAction action, GameState state, GameExport game, int clueGiverIndex, int turn)
+    {
+        var targetPlayer = action.Target;
+        if (targetPlayer < 0 || targetPlayer >= state.Hands.Count) return;
+
+        var targetHand = state.Hands[targetPlayer];
+        var touchedIndices = new List<int>();
+        int? focusIndex = null;
+        int? focusHandIndex = null;
+
+        // Find touched cards and determine focus
+        for (int i = 0; i < targetHand.Count; i++)
+        {
+            var card = targetHand[i];
+            bool touched = (action.Type == ActionType.ColorClue && card.SuitIndex == action.Value) ||
+                           (action.Type == ActionType.RankClue && card.Rank == action.Value);
+
+            if (touched)
+            {
+                touchedIndices.Add(card.DeckIndex);
+                // Focus is typically the newest touched card (or chop if chop touched)
+                if (!card.HasAnyClue) // Newly touched
+                {
+                    if (!focusIndex.HasValue || i > focusHandIndex)
+                    {
+                        focusIndex = card.DeckIndex;
+                        focusHandIndex = i;
+                    }
+                }
+            }
+        }
+
+        clueHistory.Add(new ClueHistoryEntry
+        {
+            Turn = turn,
+            ClueGiverIndex = clueGiverIndex,
+            TargetPlayerIndex = targetPlayer,
+            ClueType = (ActionType)action.Type,
+            ClueValue = action.Value,
+            TouchedDeckIndices = touchedIndices,
+            FocusDeckIndex = focusIndex
+        });
+    }
+
+    // Check misplay with blame attribution - if a clue caused the misplay, blame the clue-giver
+    // Per H-Group conventions: the clue-giver bears responsibility for any misplay caused by their clue,
+    // since they have perfect information and the player is assumed to be following conventions correctly.
+    private void CheckMisplayWithBlame(List<RuleViolation> violations, GameAction action, GameState state, GameExport game, int playerIndex, string player, int turn, List<ClueHistoryEntry> clueHistory)
+    {
+        var hand = state.Hands[playerIndex];
+        var deckIndex = action.Target;
+
+        var card = hand.FirstOrDefault(c => c.DeckIndex == deckIndex);
+        if (card == null) return;
+
+        var expectedRank = state.PlayStacks[card.SuitIndex] + 1;
+
+        // Check if play is invalid
+        if (card.Rank != expectedRank)
+        {
+            var suitName = GetSuitName(card.SuitIndex);
+            var stackValue = state.PlayStacks[card.SuitIndex];
+
+            // Check if this card was clued - if so, the clue-giver is at fault
+            // H-Group rule: clue-giver bears blame because they have perfect information
+            if (card.HasAnyClue)
+            {
+                // Find the most recent clue that touched this card
+                // Don't require it to be the focus - any clue that touched this card could have
+                // misled the player (they may have interpreted it as a prompt or play clue)
+                var relevantClue = clueHistory
+                    .Where(c => c.TargetPlayerIndex == playerIndex &&
+                                c.TouchedDeckIndices.Contains(deckIndex))
+                    .OrderByDescending(c => c.Turn)
+                    .FirstOrDefault();
+
+                if (relevantClue != null)
+                {
+                    // Check if there was a valid finesse that could have made this play correct
+                    bool validFinesseExists = CheckForValidFinesse(relevantClue, state, game, card);
+
+                    if (!validFinesseExists)
+                    {
+                        // The clue was misleading - blame the clue-giver
+                        var clueGiver = game.Players[relevantClue.ClueGiverIndex];
+                        var clueType = relevantClue.ClueType == ActionType.ColorClue
+                            ? GetSuitName(relevantClue.ClueValue)
+                            : relevantClue.ClueValue.ToString();
+
+                        // Determine if this was the focus or not for the description
+                        bool wasFocus = relevantClue.FocusDeckIndex == deckIndex;
+                        string focusNote = wasFocus ? "" : " (player may have misread focus)";
+
+                        violations.Add(new RuleViolation
+                        {
+                            Turn = relevantClue.Turn,
+                            Player = clueGiver,
+                            Type = ViolationType.BadPlayClue,
+                            Severity = Severity.Critical,
+                            Description = $"Clue ({clueType}) to {player} caused misplay of {suitName} {card.Rank} (needed {expectedRank}){focusNote}"
+                        });
+
+                        // Still add the Misplay but with reduced severity since clue-giver is blamed
+                        violations.Add(new RuleViolation
+                        {
+                            Turn = turn,
+                            Player = player,
+                            Type = ViolationType.Misplay,
+                            Severity = Severity.Info, // Reduced - player was following clue
+                            Description = $"Played {suitName} {card.Rank} but needed {expectedRank} - misled by clue from {clueGiver}",
+                            Card = new CardIdentifier
+                            {
+                                DeckIndex = deckIndex,
+                                SuitIndex = card.SuitIndex,
+                                Rank = card.Rank
+                            }
+                        });
+                        return;
+                    }
+                }
+            }
+
+            // No clue to blame (blind play without finesse setup) - standard misplay on the player
+            violations.Add(new RuleViolation
+            {
+                Turn = turn,
+                Player = player,
+                Type = ViolationType.Misplay,
+                Severity = Severity.Critical,
+                Description = $"Played {suitName} {card.Rank} but {suitName} {stackValue} was on the stack (needed {expectedRank})",
+                Card = new CardIdentifier
+                {
+                    DeckIndex = deckIndex,
+                    SuitIndex = card.SuitIndex,
+                    Rank = card.Rank
+                }
+            });
+        }
+    }
+
+    // Check if a valid finesse was set up that could justify the clue
+    private bool CheckForValidFinesse(ClueHistoryEntry clue, GameState stateAtClue, GameExport game, CardInHand targetCard)
+    {
+        // For a finesse to be valid, the connecting card must exist in finesse position
+        // of a player between the clue-giver and the target
+        var neededRank = stateAtClue.PlayStacks[targetCard.SuitIndex] + 1;
+        if (targetCard.Rank <= neededRank) return false; // Card is directly playable or already played
+
+        var numPlayers = game.Players.Count;
+
+        // Check each player between clue-giver and target
+        for (int offset = 1; offset < numPlayers; offset++)
+        {
+            int checkPlayer = (clue.ClueGiverIndex + offset) % numPlayers;
+            if (checkPlayer == clue.TargetPlayerIndex) break;
+
+            var checkHand = stateAtClue.Hands[checkPlayer];
+            var finessePosIndex = GetFinessePositionIndex(checkHand);
+            if (!finessePosIndex.HasValue) continue;
+
+            var finesseCard = checkHand[finessePosIndex.Value];
+            if (finesseCard.SuitIndex == targetCard.SuitIndex && finesseCard.Rank == neededRank)
+            {
+                return true; // Valid finesse exists
+            }
+        }
+
+        return false;
     }
 
     private void CheckBadDiscard(List<RuleViolation> violations, GameAction action, GameState state, GameExport game, int playerIndex, string player, int turn)
@@ -363,10 +537,25 @@ public class RuleAnalyzer
     }
 
     // Phase 2: Missed Save - taking an action when teammate has critical on chop
+    // Exception: If the player has a known playable card, playing it takes priority over saving
     private void CheckMissedSave(List<RuleViolation> violations, GameAction action, GameState state, GameExport game, int playerIndex, string player, int turn, ActionType actionType)
     {
         // Only check if we have clue tokens available
         if (state.ClueTokens == 0) return;
+
+        // If the player played and they had a clued playable card, that's not a missed save
+        // Playing known playable cards takes priority over giving save clues
+        if (actionType == ActionType.Play)
+        {
+            var hand = state.Hands[playerIndex];
+            var playedCard = hand.FirstOrDefault(c => c.DeckIndex == action.Target);
+
+            // If the played card was clued, the player knew to play it - not a missed save
+            if (playedCard != null && playedCard.HasAnyClue)
+            {
+                return;
+            }
+        }
 
         var numPlayers = state.Hands.Count;
 

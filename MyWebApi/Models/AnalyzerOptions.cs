@@ -58,7 +58,8 @@ public class AnalyzerOptions
             ViolationType.FiveStall,
             ViolationType.StompedFinesse,
             ViolationType.WrongPrompt,
-            ViolationType.DoubleDiscardAvoidance
+            ViolationType.DoubleDiscardAvoidance,
+            ViolationType.BadPlayClue
         },
         ConventionLevel.Level3_Advanced => new HashSet<string>
         {
@@ -78,7 +79,8 @@ public class AnalyzerOptions
             ViolationType.FiveStall,
             ViolationType.StompedFinesse,
             ViolationType.WrongPrompt,
-            ViolationType.DoubleDiscardAvoidance
+            ViolationType.DoubleDiscardAvoidance,
+            ViolationType.BadPlayClue
             // Level 3 additions can be added here
         },
         _ => new HashSet<string>()

@@ -227,6 +227,7 @@ public class GameBuilder
 
     /// <summary>
     /// Builds and analyzes the game, returning violations.
+    /// Uses the configured convention level for analysis.
     /// </summary>
     public (GameExport game, List<GameState> states, List<RuleViolation> violations) BuildAndAnalyze()
     {

@@ -57,6 +57,9 @@ public static class ViolationType
     public const string StompedFinesse = "StompedFinesse";
     public const string WrongPrompt = "WrongPrompt";
     public const string DoubleDiscardAvoidance = "DoubleDiscardAvoidance";
+
+    // Blame Attribution
+    public const string BadPlayClue = "BadPlayClue";  // Clue caused a misplay (blame clue-giver)
 }
 
 public static class Severity

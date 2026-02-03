@@ -4,6 +4,7 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
+import GameDetail from './GameDetail'
 import './App.css'
 
 // Custom tooltip component for charts
@@ -66,6 +67,12 @@ function App() {
   const [username, setUsername] = useState('jaholl')
   const [activeView, setActiveView] = useState('all')
 
+  // Game detail state
+  const [selectedGameId, setSelectedGameId] = useState(null)
+  const [gameAnalysis, setGameAnalysis] = useState(null)
+  const [analysisLoading, setAnalysisLoading] = useState(false)
+  const [analysisError, setAnalysisError] = useState(null)
+
   const fetchHistory = async () => {
     setLoading(true)
     setError(null)
@@ -89,6 +96,33 @@ function App() {
   const handleSubmit = (e) => {
     e.preventDefault()
     fetchHistory()
+  }
+
+  const fetchGameAnalysis = async (gameId) => {
+    setSelectedGameId(gameId)
+    setAnalysisLoading(true)
+    setAnalysisError(null)
+    setGameAnalysis(null)
+
+    try {
+      const response = await fetch(`http://localhost:5191/hanabi/game/${gameId}/analysis`)
+      if (!response.ok) {
+        const text = await response.text()
+        throw new Error(text || 'Failed to load game analysis')
+      }
+      const data = await response.json()
+      setGameAnalysis(data)
+    } catch (err) {
+      setAnalysisError(err.message)
+    } finally {
+      setAnalysisLoading(false)
+    }
+  }
+
+  const handleBackToList = () => {
+    setSelectedGameId(null)
+    setGameAnalysis(null)
+    setAnalysisError(null)
   }
 
   // Compute statistics
@@ -168,6 +202,21 @@ function App() {
       { name: 'Low (0-11)', value: tiers.low, color: CHART_COLORS.rose }
     ].filter(t => t.value > 0)
   }, [games])
+
+  // Show game detail view if a game is selected
+  if (selectedGameId !== null) {
+    return (
+      <div className="app">
+        <GameDetail
+          gameId={selectedGameId}
+          analysis={gameAnalysis}
+          loading={analysisLoading}
+          error={analysisError}
+          onBack={handleBackToList}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="app">
@@ -466,6 +515,7 @@ function App() {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.4, delay: index * 0.03 }}
                       whileHover={{ scale: 1.02 }}
+                      onClick={() => fetchGameAnalysis(game.id)}
                     >
                       <div className="card-top">
                         <span className="game-id">#{game.id}</span>

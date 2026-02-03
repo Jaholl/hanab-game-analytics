@@ -7,3 +7,7 @@
 Backend: `cd MyWebApi && dotnet run`
 
 Frontend: `cd MyWebApi/frontend && npm run dev`
+
+## Rules Reference
+
+For any Hanabi rule clarifications, use: https://hanabi.github.io/
