@@ -92,7 +92,7 @@ az webapp deployment source config-zip --name hanab-analytics-api --resource-gro
 **Frontend to Vercel** (if needed):
 ```bash
 cd MyWebApi/frontend
-~/.local/share/pnpm/vercel --prod
+vercel --prod
 ```
 
 ### Rotate Turso Token
