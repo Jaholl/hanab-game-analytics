@@ -27,8 +27,8 @@ builder.Services.AddCors(options =>
                 "http://localhost:5174",
                 "http://localhost:5175",
                 "http://localhost:5176",
-                "https://frontend-nberlinmurens-projects.vercel.app",
-                "https://frontend-739mbylql-nberlinmurens-projects.vercel.app")
+                "https://hanab-frontend.vercel.app",
+                "https://hanab-frontend-by34hkx2q-nberlinmurens-projects.vercel.app")
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
