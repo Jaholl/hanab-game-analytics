@@ -60,6 +60,13 @@ public static class ViolationType
 
     // Blame Attribution
     public const string BadPlayClue = "BadPlayClue";  // Clue caused a misplay (blame clue-giver)
+
+    // Level 3 - Advanced Conventions
+    public const string FixClue = "FixClue";
+    public const string SarcasticDiscard = "SarcasticDiscard";
+    public const string WrongOnesOrder = "WrongOnesOrder";
+    public const string MisplayCostViolation = "MisplayCostViolation";
+    public const string InformationLock = "InformationLock";
 }
 
 public static class Severity

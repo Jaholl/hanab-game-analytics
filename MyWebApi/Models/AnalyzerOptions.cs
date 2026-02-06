@@ -13,26 +13,19 @@ public class AnalyzerOptions
     public ConventionLevel Level { get; set; } = ConventionLevel.Level1_Beginner;
 
     /// <summary>
-    /// Returns the set of violation types that are enabled for the current level.
-    /// Higher levels include all violations from lower levels.
+    /// Violations introduced at each level. Higher levels inherit all lower-level violations.
     /// </summary>
-    public HashSet<string> EnabledViolations => Level switch
+    private static readonly Dictionary<ConventionLevel, HashSet<string>> ViolationsByLevel = new()
     {
-        ConventionLevel.Level0_Basic => new HashSet<string>
+        [ConventionLevel.Level0_Basic] = new HashSet<string>
         {
             ViolationType.Misplay,
             ViolationType.BadDiscard5,
             ViolationType.BadDiscardCritical,
             ViolationType.IllegalDiscard
         },
-        ConventionLevel.Level1_Beginner => new HashSet<string>
+        [ConventionLevel.Level1_Beginner] = new HashSet<string>
         {
-            // Level 0 violations
-            ViolationType.Misplay,
-            ViolationType.BadDiscard5,
-            ViolationType.BadDiscardCritical,
-            ViolationType.IllegalDiscard,
-            // Level 1 additions
             ViolationType.GoodTouchViolation,
             ViolationType.MCVPViolation,
             ViolationType.MissedSave,
@@ -40,51 +33,41 @@ public class AnalyzerOptions
             ViolationType.MissedFinesse,
             ViolationType.BrokenFinesse
         },
-        ConventionLevel.Level2_Intermediate => new HashSet<string>
+        [ConventionLevel.Level2_Intermediate] = new HashSet<string>
         {
-            // Level 0 violations
-            ViolationType.Misplay,
-            ViolationType.BadDiscard5,
-            ViolationType.BadDiscardCritical,
-            ViolationType.IllegalDiscard,
-            // Level 1 violations
-            ViolationType.GoodTouchViolation,
-            ViolationType.MCVPViolation,
-            ViolationType.MissedSave,
-            ViolationType.MissedPrompt,
-            ViolationType.MissedFinesse,
-            ViolationType.BrokenFinesse,
-            // Level 2 additions
             ViolationType.FiveStall,
             ViolationType.StompedFinesse,
             ViolationType.WrongPrompt,
             ViolationType.DoubleDiscardAvoidance,
             ViolationType.BadPlayClue
         },
-        ConventionLevel.Level3_Advanced => new HashSet<string>
+        [ConventionLevel.Level3_Advanced] = new HashSet<string>
         {
-            // Level 0 violations
-            ViolationType.Misplay,
-            ViolationType.BadDiscard5,
-            ViolationType.BadDiscardCritical,
-            ViolationType.IllegalDiscard,
-            // Level 1 violations
-            ViolationType.GoodTouchViolation,
-            ViolationType.MCVPViolation,
-            ViolationType.MissedSave,
-            ViolationType.MissedPrompt,
-            ViolationType.MissedFinesse,
-            ViolationType.BrokenFinesse,
-            // Level 2 violations
-            ViolationType.FiveStall,
-            ViolationType.StompedFinesse,
-            ViolationType.WrongPrompt,
-            ViolationType.DoubleDiscardAvoidance,
-            ViolationType.BadPlayClue
-            // Level 3 additions can be added here
-        },
-        _ => new HashSet<string>()
+            ViolationType.FixClue,
+            ViolationType.SarcasticDiscard,
+            ViolationType.WrongOnesOrder,
+            ViolationType.MisplayCostViolation,
+            ViolationType.InformationLock
+        }
     };
+
+    /// <summary>
+    /// Returns the set of violation types that are enabled for the current level.
+    /// Higher levels include all violations from lower levels.
+    /// </summary>
+    public HashSet<string> EnabledViolations
+    {
+        get
+        {
+            var enabled = new HashSet<string>();
+            for (var lvl = ConventionLevel.Level0_Basic; lvl <= Level; lvl++)
+            {
+                if (ViolationsByLevel.TryGetValue(lvl, out var violations))
+                    enabled.UnionWith(violations);
+            }
+            return enabled;
+        }
+    }
 
     /// <summary>
     /// Creates options for a specific convention level.
@@ -105,4 +88,9 @@ public class AnalyzerOptions
     /// Creates options for Level 2 (intermediate conventions).
     /// </summary>
     public static AnalyzerOptions Intermediate => ForLevel(ConventionLevel.Level2_Intermediate);
+
+    /// <summary>
+    /// Creates options for Level 3 (advanced conventions).
+    /// </summary>
+    public static AnalyzerOptions Advanced => ForLevel(ConventionLevel.Level3_Advanced);
 }

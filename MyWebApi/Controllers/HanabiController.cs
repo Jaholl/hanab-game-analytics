@@ -58,9 +58,9 @@ public class HanabiController : ControllerBase
         _logger.LogInformation("Analyzing game {GameId} at level {Level}", gameId, level);
 
         // Validate and convert level parameter
-        if (level < 0 || level > 2)
+        if (level < 0 || level > 3)
         {
-            return BadRequest("Level must be 0, 1, or 2");
+            return BadRequest("Level must be 0, 1, 2, or 3");
         }
         var conventionLevel = (ConventionLevel)level;
         var options = AnalyzerOptions.ForLevel(conventionLevel);
