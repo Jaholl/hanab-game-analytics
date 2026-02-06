@@ -77,22 +77,27 @@ public class InformationLockTests
     {
         // R1 is fully known but it's trash (already played) - discarding is fine
         //
-        // Play R1 first to make it trash, then have another R1 get fully clued
+        // 2-player, hand size 5
+        // Alice(0-4): R1,Y2,B1,G1,P1
+        // Bob(5-9): R1,Y1,B2,G2,P2
+        // Draw pile: R3,Y3,B3,G3
+        //
+        // Action 0 (Alice): Play R1 (deck idx 0) -> Red stack = 1, draws R3 (idx 10)
+        // Action 1 (Bob):   Clue Alice rank 2 (filler)
+        // Action 2 (Alice): ColorClue Bob Red -> marks Bob's R1 (deck idx 5)
+        // Action 3 (Bob):   Clue Alice rank 1 (filler)
+        // Action 4 (Alice): RankClue Bob 1 -> Bob's R1 now fully known
+        // Action 5 (Bob):   Discard R1 (deck idx 5) - fully known trash
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
-            .WithDeck("R1,Y2,B1,G1,P1, R1,Y1,B2,G2,P2, R3,Y3")
+            .WithDeck("R1,Y2,B1,G1,P1, R1,Y1,B2,G2,P2, R3,Y3,B3,G3")
             .AtAdvancedLevel()
-            .Play(0)              // Alice plays R1 -> Red stack = 1
-            .ColorClue(0, "Red")  // Bob clues Alice Red (touches new card drawn)
-            .RankClue(1, 1)       // Alice clues Bob 1 -> touches R1(slot 0), Y1(slot 1)
-            .ColorClue(1, "Red")  // Bob clues (wait, Bob's R1 already has rank clue from turn 3)
-            // Let me restructure: Bob has R1 at deck idx 5.
-            // After Alice plays R1(idx 0), Alice draws R3(idx 10).
-            // Now Bob clues Alice... Let me re-think this.
-            //
-            // Actually let's keep it simple - the test just needs to verify
-            // that discarding a fully-known trash card is NOT a violation.
-            .Discard(9)           // Bob discards P2 from chop
+            .Play(0)              // Action 0: Alice plays R1 -> Red stack = 1
+            .RankClue(0, 2)       // Action 1: Bob clues Alice 2 (filler)
+            .ColorClue(1, "Red")  // Action 2: Alice clues Bob Red -> touches R1
+            .RankClue(0, 1)       // Action 3: Bob clues Alice 1 (filler)
+            .RankClue(1, 1)       // Action 4: Alice clues Bob 1 -> R1 fully known
+            .Discard(5)           // Action 5: Bob discards R1 (fully known trash)
             .BuildAndAnalyze();
 
         // The key assertion: no InformationLock violation for discarding trash

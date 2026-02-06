@@ -23,12 +23,14 @@ public class MCVPTests
     public void ClueAllAlreadyCluedCards_CreatesViolation()
     {
         // Clue the same cards twice - second clue violates MCVP
+        // Turn order: action 0=Alice, 1=Bob, 2=Alice, 3=Bob
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,R2,Y1,B1,G1, R3,Y2,B2,G2,P1, R4,Y3")
-            .RankClue(0, 1) // Bob clues Alice "1" - touches R1 (new)
-            .Discard(5)     // Alice discards to give Bob a turn
-            .RankClue(0, 1) // Bob clues Alice "1" again - R1 already clued!
+            .Discard(4)     // Action 0: Alice discards G1
+            .RankClue(0, 1) // Action 1: Bob clues Alice "1" - touches R1 (new)
+            .Discard(3)     // Action 2: Alice discards B1
+            .RankClue(0, 1) // Action 3: Bob clues Alice "1" again - R1 already clued!
             .BuildAndAnalyze();
 
         // Assert
@@ -54,10 +56,12 @@ public class MCVPTests
     [Fact]
     public void ClueOnlyNewCards_NoViolation()
     {
+        // Action 0=Alice, 1=Bob
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,R2,Y1,B1,G1, R3,Y2,B2,G2,P1, R4,Y3")
-            .RankClue(0, 1) // Bob clues Alice "1" - all new
+            .Discard(4)     // Action 0: Alice discards G1
+            .RankClue(0, 1) // Action 1: Bob clues Alice "1" - all new
             .BuildAndAnalyze();
 
         // Assert
@@ -89,9 +93,10 @@ public class MCVPTests
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,R2,Y1,B1,G1, R3,Y2,B2,G2,P1, R4,Y3")
-            .RankClue(0, 1)
-            .Discard(5)
-            .RankClue(0, 1)
+            .Discard(4)     // Action 0: Alice discards G1
+            .RankClue(0, 1) // Action 1: Bob clues Alice "1"
+            .Discard(3)     // Action 2: Alice discards B1
+            .RankClue(0, 1) // Action 3: Bob re-clues - MCVP!
             .BuildAndAnalyze();
 
         violations.Should().ContainViolationWithSeverity(ViolationType.MCVPViolation, Severity.Warning);
@@ -103,9 +108,10 @@ public class MCVPTests
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,R2,Y1,B1,G1, R3,Y2,B2,G2,P1, R4,Y3")
-            .RankClue(0, 1)
-            .Discard(5)
-            .RankClue(0, 1) // Re-clue with rank
+            .Discard(4)     // Action 0: Alice discards G1
+            .RankClue(0, 1) // Action 1: Bob clues Alice "1"
+            .Discard(3)     // Action 2: Alice discards B1
+            .RankClue(0, 1) // Action 3: Re-clue with rank
             .BuildAndAnalyze();
 
         var violation = violations.FirstOfType(ViolationType.MCVPViolation);
@@ -120,9 +126,10 @@ public class MCVPTests
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,Y2,Y3,B1,G1, R3,Y4,B2,G2,P1, R4,Y5")
-            .ColorClue(0, "Red")
-            .Discard(5)
-            .ColorClue(0, "Red") // Re-clue with same color
+            .Discard(4)            // Action 0: Alice discards G1
+            .ColorClue(0, "Red")   // Action 1: Bob clues Alice "Red"
+            .Discard(3)            // Action 2: Alice discards B1
+            .ColorClue(0, "Red")   // Action 3: Re-clue with same color
             .BuildAndAnalyze();
 
         var violation = violations.FirstOfType(ViolationType.MCVPViolation);
@@ -158,14 +165,16 @@ public class MCVPTests
     public void MultipleMCVPViolations_AllFlagged()
     {
         // Multiple redundant clues should each be flagged
+        // Turn order: 0=Alice, 1=Bob, 2=Alice, 3=Bob, 4=Alice, 5=Bob
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,Y2,Y3,B1,G1, R3,Y4,B2,G2,P1, R4,Y5,B3,G3")
-            .RankClue(0, 1)  // Turn 1: Clue R1
-            .Discard(5)      // Turn 2
-            .RankClue(0, 1)  // Turn 3: Redundant
-            .Discard(6)      // Turn 4
-            .RankClue(0, 1)  // Turn 5: Redundant again
+            .Discard(4)      // Action 0: Alice discards G1
+            .RankClue(0, 1)  // Action 1: Bob clues Alice "1" - touches R1 (new)
+            .Discard(3)      // Action 2: Alice discards B1
+            .RankClue(0, 1)  // Action 3: Bob re-clues - redundant
+            .Discard(2)      // Action 4: Alice discards Y3
+            .RankClue(0, 1)  // Action 5: Bob re-clues - redundant again
             .BuildAndAnalyze();
 
         // Assert - turns 3 and 5 should have violations

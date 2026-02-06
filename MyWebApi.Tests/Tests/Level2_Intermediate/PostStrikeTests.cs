@@ -21,30 +21,13 @@ namespace MyWebApi.Tests.Tests.Level2_Intermediate;
 /// </summary>
 public class PostStrikeTests
 {
-    [Fact]
+    [Fact(Skip = "Not yet implemented - has turn order issues")]
     public void PostStrike_DeducedInformationResets()
     {
         // After a misplay, any deduced information (from finesses, prompts, etc.)
         // should be considered invalid and reset
-        // Setup: Bob thinks he has R1 (from a finesse), but misplays R3
-        // After the misplay, Bob should no longer trust finesse-deduced info
-        var (game, states, violations) = GameBuilder.Create()
-            .WithPlayers("Alice", "Bob", "Charlie")
-            .WithDeck(
-                "R2,Y1,B1,G1,P1," +  // Alice - R2 at slot 0
-                "R3,Y2,B2,G2,P2," +  // Bob - R3 at slot 5 (finesse position, thinks it's R1)
-                "Y3,B3,G3,P3,R4," +  // Charlie
-                "R1,Y4")             // R1 is actually in deck
-            .AtIntermediateLevel()
-            // Setup a finesse that goes wrong
-            .ColorClue(0, "Red")   // Turn 0: Alice clues herself Red (R2)?
-            // Actually, let's set up the finesse differently
-            // Charlie clues Alice's R2, Bob thinks finesse on himself
-            .BuildAndAnalyze();
-
-        // After misplay, deduced info should reset
-        // This is tracked by the post-strike protocol
-        Assert.True(true, "Post-strike protocol: deduced information resets");
+        // BUG: Action 0 is Alice's turn. ColorClue(0, "Red") is Alice clueing herself.
+        Assert.True(true);
     }
 
     [Fact]
@@ -71,33 +54,12 @@ public class PostStrikeTests
             because: "R5 was explicitly clued and saved");
     }
 
-    [Fact]
+    [Fact(Skip = "Not yet implemented - has turn order issues")]
     public void PostStrike_FinesseDeductionInvalidated()
     {
         // A finesse deduction should be invalidated after a strike
-        // Setup: Bob was finessed for R1, but the finesse was actually wrong
-        // After misplay, Bob should not continue assuming finesse info
-        var (game, states, violations) = GameBuilder.Create()
-            .WithPlayers("Alice", "Bob", "Charlie")
-            .WithDeck(
-                "R2,Y1,B1,G1,P1," +  // Alice - R2 at slot 0
-                "R3,Y2,B2,G2,P2," +  // Bob - R3 at slot 5 (NOT R1!)
-                "R1,Y3,B3,G3,P3," +  // Charlie - R1 at slot 10
-                "R4,Y4")
-            .AtIntermediateLevel()
-            // Setup: Someone clued R2, making Bob think he's finessed for R1
-            .ColorClue(0, "Red")   // Turn 0: Alice clues her own Red? No, can't self-clue
-            // Let's have Charlie clue Alice's R2
-            .Discard(5)            // Turn 0: Alice discards
-            .Discard(6)            // Turn 1: Bob discards
-            .ColorClue(0, "Red")   // Turn 2: Charlie clues Alice's R2
-            // Now Bob thinks: "R2 clued, I must have R1 in finesse position"
-            .Play(10)              // Turn 3: Alice turn - let's see Bob play
-            // Actually Bob plays on his turn after finesse signal
-            .BuildAndAnalyze();
-
-        // Post-strike: finesse deductions invalidated
-        Assert.True(true, "Finesse deductions invalidated after strike");
+        // BUG: Action 3 is Alice's turn (3 % 3 = 0). Play(10) targets Charlie's card from Alice's turn.
+        Assert.True(true);
     }
 
     [Fact]
@@ -173,24 +135,12 @@ public class PostStrikeTests
         violations.Should().ContainViolationCount(ViolationType.Misplay, 1);
     }
 
-    [Fact]
+    [Fact(Skip = "Not yet implemented - has broken setup")]
     public void PostStrike_GoodTouchStillApplies()
     {
         // Even after a strike, Good Touch Principle still applies
-        // (explicit clue info persists)
-        var (game, states, violations) = GameBuilder.Create()
-            .WithPlayers("Alice", "Bob")
-            .WithDeck(
-                "R3,Y1,B1,G1,P1," +  // Alice - R3 (will misplay)
-                "R2,R2,B2,G2,P2," +  // Bob - two R2s (GTP violation if both clued)
-                "R1,Y3")
-            .AtIntermediateLevel()
-            .Play(0)               // Turn 0: Alice plays R3 - MISPLAY
-            .ColorClue(0, "Red")   // Turn 1: Bob clues Alice's... wait, Alice played already
-            // Let's set up GTP test after a strike
-            .BuildAndAnalyze();
-
-        // GTP should still be checked after strikes
-        Assert.True(true, "Good Touch Principle persists after strikes");
+        // BUG: After Alice misplays at turn 0, ColorClue(0, "Red") at turn 1
+        // would clue Alice but the card was already played. Broken setup.
+        Assert.True(true);
     }
 }

@@ -66,6 +66,7 @@ public class FixClueTests
                 "R1,Y2,B2,G2,P2," +   // Bob - R1 (trash after Alice plays)
                 "Y3,B3,G3,P3,R3," +   // Charlie
                 "R4,Y4,B4")
+            .AtAdvancedLevel()
             .Play(0)                    // Alice plays R1
             .RankClue(0, 1)             // Bob clues Alice's 1s
             .RankClue(1, 1)             // Charlie clues Bob's "1" (R1 = trash!)
@@ -86,6 +87,7 @@ public class FixClueTests
                 "R1,Y2,B2,G2,P2," +
                 "Y3,B3,G3,P3,R3," +
                 "R4,Y4,B4")
+            .AtAdvancedLevel()
             .Play(0)                    // Alice plays R1
             .RankClue(0, 1)             // Bob clues Alice 1s
             .RankClue(1, 1)             // Charlie clues Bob 1 (R1 = trash)

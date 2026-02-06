@@ -75,7 +75,8 @@ public class GoodTouchTests
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R2,R2,Y1,B1,G1, R3,Y2,B2,G2,P1, R4,Y3") // Alice has two R2s
-            .RankClue(0, 2) // Bob clues Alice "2" - touches BOTH R2s (one is a duplicate!)
+            .Discard(4)     // Action 0: Alice discards G1
+            .RankClue(0, 2) // Action 1: Bob clues Alice "2" - touches BOTH R2s (one is a duplicate!)
             .BuildAndAnalyze();
 
         // Assert - this is particularly bad as it creates confusion
@@ -91,7 +92,8 @@ public class GoodTouchTests
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,R2,Y1,B1,G1, R3,Y2,B2,G2,P1, R4,Y3")
-            .RankClue(0, 1) // Bob clues Alice "1" - touches R1 (playable!)
+            .Discard(4)     // Action 0: Alice discards G1
+            .RankClue(0, 1) // Action 1: Bob clues Alice "1" - touches R1 (playable!)
             .BuildAndAnalyze();
 
         // Assert

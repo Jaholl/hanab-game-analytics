@@ -183,28 +183,11 @@ public class WrongPromptTests
         violations.Should().NotContainViolation(ViolationType.WrongPrompt);
     }
 
-    [Fact]
+    [Fact(Skip = "Not yet implemented - has turn order issues")]
     public void WrongPrompt_MultipleWrongPrompts_ChainedFinesse()
     {
         // Multiple wrong prompts in sequence indicate a deeply layered finesse
-        // Setup: Bob has R4 clued, Charlie has R3 clued, Diana has R1 and R2 in finesse positions
-        // A clue on R5 would create: prompt Bob (wrong!) -> prompt Charlie (wrong!) -> finesse Diana
-        var (game, states, violations) = GameBuilder.Create()
-            .WithPlayers("Alice", "Bob", "Charlie", "Diana")
-            .WithDeck(
-                "R5,Y1,B1,G1,P1," +  // Alice - R5 at slot 0
-                "Y2,B2,G2,R4,P2," +  // Bob - R4 at slot 8
-                "Y3,B3,G3,R3,P3," +  // Charlie - R3 at slot 13
-                "R1,R2,B4,G4,P4," +  // Diana - R1 (slot 15), R2 (slot 16) in finesse positions
-                "Y4,B5")
-            .AtIntermediateLevel()
-            .ColorClue(1, "Red")   // Turn 0: Alice clues Bob's R4
-            .Discard(5)            // Turn 1: Bob discards
-            .ColorClue(2, "Red")   // Turn 2: Charlie clues Charlie's... wait, can't self-clue
-            // Simplify - this is a complex scenario
-            .BuildAndAnalyze();
-
-        // Specification test - complex multi-wrong-prompt chains
-        Assert.True(true, "Specification: Multiple wrong prompts create chained finesse");
+        // BUG: Action 2 is Charlie's turn. ColorClue(2, "Red") is Charlie clueing himself.
+        Assert.True(true);
     }
 }

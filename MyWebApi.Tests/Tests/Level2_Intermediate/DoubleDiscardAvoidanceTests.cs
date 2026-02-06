@@ -45,6 +45,7 @@ public class DoubleDiscardAvoidanceTests
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,R2,Y1,B1,G1, R3,Y2,B2,G2,P1, R4,Y3")
+            .AtIntermediateLevel()
             .RankClue(1, 3) // Alice gives a clue (not a discard)
             .Discard(5)     // Bob discards from chop - NOT a DDA violation
             .BuildAndAnalyze();
@@ -60,6 +61,7 @@ public class DoubleDiscardAvoidanceTests
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,R2,Y1,B1,G1, R3,Y2,B2,G2,P1, R4,Y3")
+            .AtIntermediateLevel()
             .Play(0)    // Alice plays (not a discard)
             .Discard(5) // Bob discards from chop - NOT a DDA violation
             .BuildAndAnalyze();

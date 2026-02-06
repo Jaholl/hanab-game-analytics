@@ -51,22 +51,13 @@ public class IllegalActionTests
         violations.OfType("IllegalDiscard").Should().BeEmpty();
     }
 
-    [Fact]
+    [Fact(Skip = "No checker implemented yet")]
     public void GiveClueAt0Tokens_ShouldBeIllegal()
     {
-        // This is enforced by the game itself, but we should detect it
-        // Need to get down to 0 clue tokens first
-
-        // Note: Getting to 0 clues requires 8 clues given without any discards
-        // This is difficult to set up in a short test, so we'll use a simpler approach
-
-        // Actually, the game simulator likely prevents this, but we should test
-        // that our analyzer would catch it if it somehow happened
-
-        // For now, mark this as a specification test
-        // The actual test would require modifying game state directly
-
-        Assert.True(true, "Specification: Giving clue at 0 tokens should be flagged as illegal");
+        // Specification: Giving a clue at 0 clue tokens should be flagged as illegal.
+        // The game simulator likely prevents this, but our analyzer should detect it
+        // if it somehow happened. Implementation requires either modifying game state
+        // directly or setting up a scenario that reaches 0 clue tokens and then clues.
     }
 
     [Fact]
@@ -129,43 +120,28 @@ public class IllegalActionTests
     [Fact]
     public void DiscardAt8Clues_DescriptionShouldExplainWhy()
     {
-        // If implemented, the violation description should explain the rule
+        // The violation description should explain the rule
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,R2,Y1,B1,G1, R3,Y2,B2,G2,P1")
             .Discard(0)
             .BuildAndAnalyze();
 
-        var illegalDiscard = violations.FirstOrDefault(v => v.Type == "IllegalDiscard");
-        if (illegalDiscard != null)
-        {
-            illegalDiscard.Description.Should().Contain("8", because: "should mention max clue tokens");
-        }
-        // Note: Test passes if no IllegalDiscard exists (feature not implemented yet)
+        violations.Should().ContainViolation(ViolationType.IllegalDiscard,
+            because: "discarding at 8 clue tokens is against Hanabi rules");
+        var illegalDiscard = violations.FirstOfType(ViolationType.IllegalDiscard);
+        illegalDiscard.Should().NotBeNull();
+        illegalDiscard!.Description.Should().Contain("8",
+            because: "should mention max clue tokens");
     }
 
-    [Fact]
+    [Fact(Skip = "No checker implemented yet")]
     public void LockedHand_CannotDiscard()
     {
-        // If all cards in hand are clued, the player has a "locked hand"
-        // They cannot legally discard (no unclued cards to discard)
-        // They must play or give a clue
-
-        // This is a game rule enforcement test
-        // In practice, the game wouldn't let you select a clued card to discard
-        // But we should verify our analyzer understands locked hands
-
-        // Set up a scenario where all cards are clued
-        var (game, states, violations) = GameBuilder.Create()
-            .WithPlayers("Alice", "Bob")
-            .WithDeck("R1,R2,R3,R4,R5, Y1,Y2,Y3,Y4,Y5, G1,G2")
-            // Clue all of Alice's cards
-            .RankClue(0, 1)  // Bob clues Alice's 1
-            .RankClue(0, 2)  // Alice clues... wait, Alice can't clue herself
-            .BuildAndAnalyze();
-
-        // Note: This test is more of a specification - actual locked hand
-        // detection requires specific game states that are complex to set up
-        Assert.True(true, "Specification: Locked hands restrict discard options");
+        // Specification: If all cards in hand are clued, the player has a "locked hand".
+        // They cannot legally discard (no unclued cards to discard).
+        // They must play or give a clue.
+        // Actual locked hand detection requires specific game states that are
+        // complex to set up and a dedicated checker to detect the violation.
     }
 }

@@ -108,11 +108,13 @@ public class PromptTests
     public void PlayCluedPlayableCard_NoViolation()
     {
         // Normal case - playing a clued playable card
+        // Action 0=Alice, 1=Bob, 2=Alice
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,R2,Y1,B1,G1, R3,Y2,B2,G2,P1, R4,Y3")
-            .RankClue(0, 1)  // Bob clues Alice "1"
-            .Play(0)         // Alice plays R1 - correct!
+            .Discard(4)      // Action 0: Alice discards G1
+            .RankClue(0, 1)  // Action 1: Bob clues Alice "1"
+            .Play(0)         // Action 2: Alice plays R1 - correct!
             .BuildAndAnalyze();
 
         // Assert
@@ -149,21 +151,22 @@ public class PromptTests
         violation!.Description.Should().Contain("Red 1", because: "should mention the missed playable card");
     }
 
-    [Fact]
+    [Fact(Skip = "Not yet implemented")]
     public void GiveClueInsteadOfPlay_MissedPrompt()
     {
         // Giving a clue when you have a playable clued card is also missing the prompt
+        // Action 0=Alice, 1=Bob, 2=Alice
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,R2,Y1,B1,G1, R3,Y2,B2,G2,P1, R4,Y3")
-            .RankClue(0, 1)      // Bob clues Alice "1"
-            .RankClue(1, 3)      // Alice gives a clue instead of playing R1
+            .Discard(4)          // Action 0: Alice discards G1
+            .RankClue(0, 1)      // Action 1: Bob clues Alice "1"
+            .RankClue(1, 3)      // Action 2: Alice gives a clue instead of playing R1
             .BuildAndAnalyze();
 
         // Assert - Alice should have played
-        // Note: Current implementation only checks discards, not clues
-        // Test defines the correct behavior
-        Assert.True(true, "Specification: Cluing when you should play is also missing the prompt");
+        violations.Should().ContainViolation(ViolationType.MissedPrompt);
+        violations.Should().ContainViolationForPlayer(ViolationType.MissedPrompt, "Alice");
     }
 
     [Fact]
@@ -195,20 +198,21 @@ public class PromptTests
         Assert.True(true, "Cards that become playable should be played");
     }
 
-    [Fact]
+    [Fact(Skip = "Not yet implemented")]
     public void OnlyReportOnce_PerTurn()
     {
         // If player has multiple playable clued cards and discards,
         // only report one MissedPrompt (not multiple)
+        // Action 0=Alice, 1=Bob, 2=Alice
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
             .WithDeck("R1,Y1,G1,B1,P1, R2,Y2,G2,B2,P2, R3,Y3")
-            .RankClue(0, 1)  // All 1s clued and playable
-            .Discard(5)      // Bob discards (Alice discarded?) - need to check turn order
+            .Discard(4)      // Action 0: Alice discards P1
+            .RankClue(0, 1)  // Action 1: Bob clues Alice "1" - all 1s playable
+            .Discard(3)      // Action 2: Alice discards B1 instead of playing
             .BuildAndAnalyze();
 
         // The implementation should only flag one MissedPrompt per turn
-        // Not one for each playable card
-        Assert.True(true, "Only one MissedPrompt per turn");
+        violations.OfType(ViolationType.MissedPrompt).Should().HaveCount(1);
     }
 }
