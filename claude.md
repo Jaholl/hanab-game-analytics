@@ -5,12 +5,27 @@
 ## Commands
 
 Backend: `cd MyWebApi && dotnet run`
-
+Tests: `dotnet test MyWebApi.Tests`
 Frontend: `cd MyWebApi/frontend && npm run dev`
+
+If dotnet missing: `curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh && chmod +x /tmp/dotnet-install.sh && /tmp/dotnet-install.sh --channel 8.0` then `export PATH="$HOME/.dotnet:$PATH"`
 
 ## Rules Reference
 
 For any Hanabi rule clarifications, use: https://hanabi.github.io/
+
+## Analysis Architecture
+
+Strategy pattern in `MyWebApi/Services/Analysis/`. `GameAnalysisOrchestrator` loops actions, runs `IStateTracker`s then `IViolationChecker`s. `RuleAnalyzer` is a thin wrapper. Checkers in `Checkers/Level{0-3}/`. Levels: 0=Basic, 1=Beginner, 2=Intermediate, 3=Advanced.
+
+## Test Gotchas
+
+- **Turn order**: Action index `i` = player `i % numPlayers`. Player 0 goes first.
+- **Self-clue is silent**: Simulator allows it without error. Verify `clueTarget != actionIndex % numPlayers`.
+- **Play wrong hand is silent**: Playing a deckIndex not in current player's hand does nothing.
+- **Level must match**: Level 3 tests MUST call `.AtAdvancedLevel()`. Default is Level1.
+- **WithPlayStacks()** only modifies `states[0]`, not the simulation. Use `Play()` actions instead.
+- **Hand positions**: Index 0 = oldest (chop), highest = newest (finesse).
 
 ---
 
