@@ -28,7 +28,8 @@ builder.Services.AddCors(options =>
                 "http://localhost:5175",
                 "http://localhost:5176",
                 "https://hanab-frontend.vercel.app",
-                "https://hanab-frontend-by34hkx2q-nberlinmurens-projects.vercel.app")
+                "https://hanab-frontend-by34hkx2q-nberlinmurens-projects.vercel.app",
+                "https://hanab-game-analytics-xi.vercel.app")
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
