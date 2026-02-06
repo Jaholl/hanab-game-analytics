@@ -75,6 +75,10 @@ public class MissedSaveChecker : IViolationChecker
 
             if (needsSave && !chopCard.HasAnyClue)
             {
+                // Suppress if the card is saved by another player within one round
+                if (IsChopCardSavedSoon(context, chopCard, p))
+                    continue;
+
                 var suitName = AnalysisHelpers.GetSuitName(chopCard.SuitIndex);
                 string actionDescription = action.Type switch
                 {
@@ -93,5 +97,43 @@ public class MissedSaveChecker : IViolationChecker
                 });
             }
         }
+    }
+
+    /// <summary>
+    /// Checks if the chop card is saved (clued or played) within one round.
+    /// If another player handles the save soon after, the current player's
+    /// "missed save" is not truly missed — the team coordinated.
+    /// </summary>
+    private static bool IsChopCardSavedSoon(AnalysisContext context, CardInHand chopCard, int chopPlayerIndex)
+    {
+        var game = context.Game;
+        var numPlayers = game.Players.Count;
+        int maxLookahead = context.ActionIndex + numPlayers;
+
+        for (int i = context.ActionIndex + 1; i < game.Actions.Count && i <= maxLookahead; i++)
+        {
+            var action = game.Actions[i];
+
+            // Card got clued directly (saved)
+            if ((action.Type == ActionType.ColorClue || action.Type == ActionType.RankClue) &&
+                action.Target == chopPlayerIndex)
+            {
+                var hand = context.States[i].Hands[chopPlayerIndex];
+                var touched = AnalysisHelpers.GetTouchedCards(hand, action);
+                if (touched.Any(c => c.DeckIndex == chopCard.DeckIndex))
+                    return true;
+            }
+
+            // Card was played (survived)
+            if (action.Type == ActionType.Play && action.Target == chopCard.DeckIndex)
+                return true;
+
+            // Card was discarded (truly lost — save was needed!)
+            if (action.Type == ActionType.Discard && action.Target == chopCard.DeckIndex)
+                return false;
+        }
+
+        // Card not explicitly saved within one round → don't suppress
+        return false;
     }
 }
