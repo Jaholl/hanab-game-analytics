@@ -29,15 +29,15 @@ public class EarlyGameTests
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob", "Charlie")
             .WithDeck(
-                "R3,Y3,B3,G3,P3," +  // Alice - nothing immediately playable
-                "R4,Y4,B4,G4,P4," +  // Bob - no critical cards on chop
-                "R2,Y2,B2,G2,P2," +  // Charlie
-                "R1,Y1,B1,G1,P1," +  // Deck continues
-                "R5,Y5")
-            // No 5s or 2s on chop, no immediate plays
-            .Discard(0)  // Alice discards R3 - ends early game
-            .Discard(5)  // Bob discards R4 - post-early game, acceptable
-            .Discard(10) // Charlie discards R2 - also acceptable
+                "R1,Y1,B3,G3,P3," +  // Alice - R1 has 3 copies, safe to discard
+                "B1,G1,B4,G4,P4," +  // Bob - 1s have 3 copies, no critical on chop
+                "Y1,P1,B3,G3,P3," +  // Charlie - 1s have 3 copies, no critical on chop
+                "R3,Y3,R4,Y4,B4," +  // Deck continues
+                "G4,P4")
+            // No 5s or 2s on chop. Using 1s (3 copies each) so discards don't create critical cards.
+            .Discard(0)  // Alice discards R1 - ends early game (2 copies of R1 remain)
+            .Discard(5)  // Bob discards B1 - post-early game (2 copies of B1 remain)
+            .Discard(10) // Charlie discards Y1 - also acceptable (2 copies of Y1 remain)
             .BuildAndAnalyze();
 
         // After the first discard, subsequent discards are normal

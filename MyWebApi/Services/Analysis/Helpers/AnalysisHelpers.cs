@@ -103,13 +103,14 @@ public static class AnalysisHelpers
         return null;
     }
 
-    public static int CountVisibleCopies(CardInHand card, GameState state, GameExport game, int excludePlayer)
+    public static int CountVisibleCopies(CardInHand card, GameState state, GameExport game, int excludePlayer, int excludeDeckIndex = -1)
     {
         int count = 0;
         for (int p = 0; p < state.Hands.Count; p++)
         {
             if (p == excludePlayer) continue;
-            count += state.Hands[p].Count(c => c.SuitIndex == card.SuitIndex && c.Rank == card.Rank);
+            count += state.Hands[p].Count(c =>
+                c.SuitIndex == card.SuitIndex && c.Rank == card.Rank && c.DeckIndex != excludeDeckIndex);
         }
         return count;
     }

@@ -23,13 +23,20 @@ public class SarcasticDiscardChecker : IViolationChecker
         if (discardedCard == null) return;
 
         // Check if the player has any clued cards that are known duplicates
-        // of clued cards in other players' hands
+        // of clued cards in other players' hands.
+        // The player must be able to deduce their card's identity from clues
+        // (both color and rank known) to recognize it as a duplicate.
         foreach (var myCard in hand)
         {
             if (!myCard.HasAnyClue) continue;
             if (myCard.DeckIndex == deckIndex) continue; // Already being discarded
 
-            // Check if this clued card matches a clued card in another player's hand
+            // Player must know both color and rank of their card to identify a duplicate
+            bool myCardHasColor = myCard.ClueColors.Any(c => c);
+            bool myCardHasRank = myCard.ClueRanks.Any(r => r);
+            if (!myCardHasColor || !myCardHasRank) continue;
+
+            // Check if this fully-known card matches a clued card in another player's hand
             for (int p = 0; p < context.StateBefore.Hands.Count; p++)
             {
                 if (p == context.CurrentPlayerIndex) continue;

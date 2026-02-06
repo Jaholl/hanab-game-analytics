@@ -25,15 +25,15 @@ public class PlayingMultipleOnesChecker : IViolationChecker
         // Only applies when playing a 1
         if (card.Rank != 1) return;
 
-        // Only applies if the card is clued (player knows it's a 1)
-        if (!card.HasAnyClue) return;
+        // Only applies if the card was clued as rank 1 (player knows it's a 1)
+        if (!card.ClueRanks[0]) return;
 
-        // Find all clued 1s in hand
+        // Find all rank-1-clued 1s in hand
         var cluedOnes = new List<(CardInHand card, int handIndex)>();
         for (int i = 0; i < hand.Count; i++)
         {
             var c = hand[i];
-            if (c.Rank == 1 && c.HasAnyClue && AnalysisHelpers.IsCardPlayable(c, context.StateBefore))
+            if (c.Rank == 1 && c.ClueRanks[0] && AnalysisHelpers.IsCardPlayable(c, context.StateBefore))
             {
                 cluedOnes.Add((c, i));
             }

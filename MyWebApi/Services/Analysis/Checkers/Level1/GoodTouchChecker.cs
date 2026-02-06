@@ -61,6 +61,7 @@ public class GoodTouchChecker : IViolationChecker
             for (int p = 0; p < state.Hands.Count; p++)
             {
                 if (p == targetPlayer) continue;
+                if (p == context.CurrentPlayerIndex) continue; // Clue-giver can't see own hand
                 foreach (var otherCard in state.Hands[p])
                 {
                     if (otherCard.SuitIndex == card.SuitIndex &&

@@ -49,9 +49,8 @@ public class GoodTouchTests
     [Fact]
     public void ClueTouchesDuplicateInOtherHand_CreatesViolation()
     {
-        // Arrange: Both players have R2, Alice's is clued, Bob clues his own... wait
-        // Actually: Alice clues Bob's R2, then later someone clues Alice's R2
-
+        // Alice clues Bob's R2, then Charlie clues Alice's R2 (duplicate).
+        // Charlie can see Bob's clued R2, so should not touch Alice's R2.
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob", "Charlie")
             .WithDeck(
@@ -59,13 +58,14 @@ public class GoodTouchTests
                 "R2,Y2,B2,G2,P2," +  // Bob
                 "R3,Y3,B3,G3,P3," +  // Charlie
                 "R4,Y4")             // Draw
-            .RankClue(1, 2) // Alice clues Bob "2" - touches R2 (good)
-            .RankClue(0, 2) // Bob clues Alice "2" - touches R2 (duplicate of Bob's clued R2!)
+            .RankClue(1, 2) // Turn 1 (Alice): clues Bob "2" - touches R2 (good)
+            .RankClue(2, 3) // Turn 2 (Bob): clues Charlie "3" (filler, preserves Bob's R2)
+            .RankClue(0, 2) // Turn 3 (Charlie): clues Alice "2" - touches R2 (duplicate of Bob's clued R2!)
             .BuildAndAnalyze();
 
-        // Assert - Bob's clue touched a duplicate
+        // Assert - Charlie's clue touched a duplicate (Charlie can see Bob's clued R2)
         violations.Should().ContainViolation(ViolationType.GoodTouchViolation);
-        violations.Should().ContainViolationForPlayer(ViolationType.GoodTouchViolation, "Bob");
+        violations.Should().ContainViolationForPlayer(ViolationType.GoodTouchViolation, "Charlie");
     }
 
     [Fact]

@@ -71,15 +71,21 @@ public class FinesseSetupChecker : IViolationChecker
 
         if (finessePlayerIndex == -1) return;
 
-        int nextActionIndex = context.ActionIndex + 1;
-        if (nextActionIndex >= game.Actions.Count) return;
+        // Find the finesse player's next turn (may not be the immediately next action)
+        int finesseActionIndex = -1;
+        for (int i = context.ActionIndex + 1; i < game.Actions.Count; i++)
+        {
+            if (i % numPlayers == finessePlayerIndex)
+            {
+                finesseActionIndex = i;
+                break;
+            }
+        }
+        if (finesseActionIndex == -1) return;
 
-        var nextAction = game.Actions[nextActionIndex];
-        int nextPlayerIndex = nextActionIndex % numPlayers;
+        var finesseAction = game.Actions[finesseActionIndex];
 
-        if (nextPlayerIndex != finessePlayerIndex) return;
-
-        if (nextAction.Type != ActionType.Play)
+        if (finesseAction.Type != ActionType.Play)
         {
             var suitName = AnalysisHelpers.GetSuitName(focusCard.SuitIndex);
             context.Violations.Add(new RuleViolation

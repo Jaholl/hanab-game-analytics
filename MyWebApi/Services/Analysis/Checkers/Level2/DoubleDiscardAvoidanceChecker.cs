@@ -48,6 +48,15 @@ public class DoubleDiscardAvoidanceChecker : IViolationChecker
 
         if (AnalysisHelpers.IsCardTrash(currentDiscardedCard, context.StateBefore)) return;
 
+        // Exempt forced discards: 0 clue tokens and no playable cards means the player
+        // can only discard (playing would be a guaranteed misplay).
+        // Note: In practice this is rare since the previous discard adds a clue token.
+        if (context.StateBefore.ClueTokens == 0 &&
+            !currentHand.Any(c => AnalysisHelpers.IsCardPlayable(c, context.StateBefore)))
+        {
+            return;
+        }
+
         var suitName = AnalysisHelpers.GetSuitName(currentDiscardedCard.SuitIndex);
         context.Violations.Add(new RuleViolation
         {

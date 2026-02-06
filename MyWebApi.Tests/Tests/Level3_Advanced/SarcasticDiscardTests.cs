@@ -38,13 +38,13 @@ public class SarcasticDiscardTests
                 "Y3,B3,G3,P3,R3," +   // Charlie
                 "R4,Y4,B4")
             .AtAdvancedLevel()
-            // Turn 1 (Alice): Clue Bob Red -> Bob's R2 gets clued
+            // Turn 1 (Alice): Clue Bob Red -> Bob's R2 gets Red clue
             .ColorClue(1, "Red")
-            // Turn 2 (Bob): Clue Alice Red -> Alice's R2 gets clued
+            // Turn 2 (Bob): Clue Alice Red -> Alice's R2 gets Red clue
             .ColorClue(0, "Red")
-            // Now both have clued R2s. Alice knows she has a duplicate.
-            // Turn 3 (Charlie): does something else
-            .Discard(14)
+            // Turn 3 (Charlie): Clue Alice 2 -> Alice's R2 now fully known (Red + 2)
+            .RankClue(0, 2)
+            // Now Alice knows she has Red 2, and can see Bob also has a clued Red card.
             // Turn 4 (Alice): Should sarcastic-discard R2, but discards chop instead
             .Discard(4)            // Alice discards P1 from chop instead of sarcastic-discarding R2
             .BuildAndAnalyze();
@@ -66,7 +66,7 @@ public class SarcasticDiscardTests
             .AtAdvancedLevel()
             .ColorClue(1, "Red")   // Alice clues Bob Red
             .ColorClue(0, "Red")   // Bob clues Alice Red
-            .Discard(14)           // Charlie discards
+            .RankClue(0, 2)        // Charlie clues Alice 2 -> R2 fully known
             .Discard(0)            // Alice sarcastic-discards her R2 - correct!
             .BuildAndAnalyze();
 
@@ -101,7 +101,7 @@ public class SarcasticDiscardTests
             .AtIntermediateLevel()
             .ColorClue(1, "Red")
             .ColorClue(0, "Red")
-            .Discard(14)
+            .RankClue(0, 2)
             .Discard(4)
             .BuildAndAnalyze();
 

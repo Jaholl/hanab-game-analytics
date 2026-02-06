@@ -98,15 +98,16 @@ public class SaveClueTests
             .BuildAndAnalyze();
 
         // Actually, let's test: save the 5, then Alice can safely discard
+        // Use a hand where Bob's new chop after discarding isn't a saveable 2
         var (game2, states2, violations2) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob")
-            .WithDeck("R1,R2,Y1,B1,G1, R5,Y2,B2,G2,P1, R3,Y3")
+            .WithDeck("R1,R3,Y1,B1,G1, R5,Y3,B3,G3,P1, R4,Y4")
             .RankClue(1, 5) // Alice saves Bob's 5
-            .Discard(6)     // Bob discards Y2 (not the 5)
+            .Discard(6)     // Bob discards Y3 (not the 5)
             .Discard(0)     // Alice discards - Bob's 5 is safe (clued)
             .BuildAndAnalyze();
 
-        // Assert - no MissedSave since Bob's 5 was already clued
+        // Assert - no MissedSave since Bob's 5 was already clued and no other saveable card on chop
         var turn3Violations = violations2.Where(v => v.Turn == 3 && v.Type == ViolationType.MissedSave);
         turn3Violations.Should().BeEmpty();
     }
@@ -161,21 +162,21 @@ public class SaveClueTests
     [Fact]
     public void TwoSaveNotCritical_NoViolation()
     {
-        // A 2 on chop might need saving, but only if it's not visible elsewhere
+        // A 2 on chop doesn't need saving if another copy is visible to the acting player
+        // 3-player: Alice can see R2 in Charlie's hand, so Bob's R2 on chop doesn't need 2-save
         var (game, states, violations) = GameBuilder.Create()
-            .WithPlayers("Alice", "Bob")
-            .WithDeck("R1,R2,Y1,B1,G1, R2,Y2,B2,G2,P1, R3,Y3") // Both have R2
-            .Discard(0) // Alice discards - Bob has R2 on chop but Alice also has R2
+            .WithPlayers("Alice", "Bob", "Charlie")
+            .WithDeck(
+                "R1,Y1,B1,G1,P1," +  // Alice
+                "R2,Y3,B3,G3,P3," +  // Bob - R2 on chop
+                "R2,Y4,B4,G4,P4," +  // Charlie - also has R2 (visible to Alice)
+                "R3,Y5")
+            .Discard(0) // Alice discards - Bob has R2 on chop but Alice sees R2 in Charlie's hand
             .BuildAndAnalyze();
 
-        // Assert - R2 save not critical because Alice can see her own R2
-        // Actually, in Hanabi, you can't see your own hand. Let's reconsider.
-        // The MissedSave logic should check if the 2 is visible ELSEWHERE
-
-        // With two R2s visible (one in each hand), neither is critical yet
-        // No MissedSave expected
+        // No 2-save needed because Alice can see another R2 in Charlie's hand
         violations.Should().NotContainViolation(ViolationType.MissedSave,
-            because: "R2 is visible in another hand, so not critical to save immediately");
+            because: "R2 is visible in Charlie's hand, so not critical to save immediately");
     }
 
     [Fact]

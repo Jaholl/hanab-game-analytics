@@ -65,7 +65,7 @@ public class MissedSaveChecker : IViolationChecker
             }
             else if (chopCard.Rank == 2 && state.PlayStacks[chopCard.SuitIndex] < 2)
             {
-                var visibleCopies = AnalysisHelpers.CountVisibleCopies(chopCard, state, game, context.CurrentPlayerIndex);
+                var visibleCopies = AnalysisHelpers.CountVisibleCopies(chopCard, state, game, context.CurrentPlayerIndex, chopCard.DeckIndex);
                 if (visibleCopies == 0)
                 {
                     needsSave = true;

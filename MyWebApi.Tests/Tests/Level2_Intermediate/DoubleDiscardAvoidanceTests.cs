@@ -166,35 +166,38 @@ public class DoubleDiscardAvoidanceTests
     }
 
     [Fact]
-    public void DDA_At0Clues_MustDiscard()
+    public void DDA_AfterBurningAllClues_PreviousDiscardStillGivesToken()
     {
-        // At 0 clues, if you can't play, you must discard even if DDA applies
-        // This is a forced action
-
+        // Even after burning all clue tokens, the previous player's discard
+        // adds a token back, so the current player CAN clue to avoid DDA.
+        // DDA should still be flagged.
+        //
+        // 3 players, 8 clues to reach 0 tokens:
+        // Actions 0-7: clues (0 tokens)
+        // Action 8 (Charlie): discard from chop → 1 token
+        // Action 9 (Alice): discard from chop → DDA (she has 1 token, could clue)
         var (game, states, violations) = GameBuilder.Create()
             .WithPlayers("Alice", "Bob", "Charlie")
             .WithDeck(
-                "R2,Y1,B1,G1,P1," +  // Alice - no playable cards
-                "R3,Y2,B2,G2,P2," +  // Bob - no playable cards
+                "R2,Y1,B1,G1,P1," +  // Alice
+                "R3,Y2,B2,G2,P2," +  // Bob
                 "R4,Y3,B3,G3,P3," +  // Charlie
-                "R5,Y4")
-            // Get to 0 clues
-            .ColorClue(1, "Red")
-            .ColorClue(2, "Yellow")
-            .ColorClue(0, "Blue")
-            .ColorClue(1, "Yellow")
-            .ColorClue(2, "Blue")
-            .ColorClue(0, "Green")
-            .ColorClue(1, "Blue")
-            .ColorClue(2, "Green")
-            // Now at 0 clues
-            .Discard(0) // Alice forced to discard
-            .Discard(5) // Bob forced to discard - would be DDA but forced
+                "R5,Y4,B4")
+            .AtIntermediateLevel()
+            .ColorClue(1, "Red")      // Action 0 (Alice): 7 tokens
+            .ColorClue(2, "Yellow")   // Action 1 (Bob): 6 tokens
+            .ColorClue(0, "Blue")     // Action 2 (Charlie): 5 tokens
+            .ColorClue(1, "Yellow")   // Action 3 (Alice): 4 tokens
+            .ColorClue(2, "Blue")     // Action 4 (Bob): 3 tokens
+            .ColorClue(0, "Green")    // Action 5 (Charlie): 2 tokens
+            .ColorClue(1, "Blue")     // Action 6 (Alice): 1 token
+            .ColorClue(2, "Green")    // Action 7 (Bob): 0 tokens
+            .Discard(10)              // Action 8 (Charlie): discard R4 from chop → 1 token
+            .Discard(0)               // Action 9 (Alice): discard R2 from chop → DDA!
             .BuildAndAnalyze();
 
-        // Assert - Bob's discard should not be flagged as DDA (forced action)
-        // Note: Implementation needs to check for 0 clues and no playable cards
-        Assert.True(true, "Forced discards at 0 clues are not DDA violations");
+        // Assert - Alice has 1 clue token (from Charlie's discard), so DDA applies
+        violations.Should().ContainViolation("DoubleDiscardAvoidance");
     }
 
     [Fact]

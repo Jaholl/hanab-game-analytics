@@ -29,7 +29,10 @@ public class MisplayCostChecker : IViolationChecker
         var state = context.StateBefore;
         var numPlayers = game.Players.Count;
 
-        // Check if the next player misplays a clued card
+        // Check if the next player misplays a clued card.
+        // 1-action lookahead is correct: this checker runs for every action,
+        // so each player is only responsible for the misplay immediately after their turn.
+        // Blame correctly cascades to the player right before the misplay.
         int nextActionIndex = context.ActionIndex + 1;
         if (nextActionIndex >= game.Actions.Count) return;
 
