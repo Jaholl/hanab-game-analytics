@@ -376,10 +376,12 @@ function App() {
       { axis: 'Error/Move', desc: 'Fewer strikes and critical discards per move', value: d.accuracy, fullMark: 100, ...(c && { compareValue: c.accuracy }) },
       { axis: 'Saves Cards', desc: 'Saves teammates\' critical/unique cards before they discard', value: d.teamwork, fullMark: 100, ...(c && { compareValue: c.teamwork }) },
       { axis: 'Reads Finesses', desc: 'Recognizes and responds to prompts and finesses', value: d.technique, fullMark: 100, ...(c && { compareValue: c.technique }) },
+      { axis: 'Misreads Saves', desc: 'Fewer times misreading a save clue as a play clue', value: d.misreadSaves, fullMark: 100, ...(c && { compareValue: c.misreadSaves }) },
       { axis: 'Plays Often', desc: 'Proportion of turns spent playing cards', value: d.boldness, fullMark: 100, ...(c && { compareValue: c.boldness }) },
       { axis: 'Clues Often', desc: 'Proportion of turns spent giving clues', value: d.efficiency, fullMark: 100, ...(c && { compareValue: c.efficiency }) },
       { axis: 'Discards Often', desc: 'Proportion of turns spent discarding', value: d.discardFrequency, fullMark: 100, ...(c && { compareValue: c.discardFrequency }) },
-      { axis: 'Misreads Saves', desc: 'Lower misplay rate — doesn\'t confuse save clues for play clues', value: d.misreadSaves, fullMark: 100, ...(c && { compareValue: c.misreadSaves }) },
+      { axis: 'Clean Clues', desc: 'Fewer clues that touch trash cards (Good Touch Principle)', value: d.cleanClues, fullMark: 100, ...(c && { compareValue: c.cleanClues }) },
+      { axis: 'Color Clues', desc: 'Proportion of clues that are color clues vs rank clues', value: d.colorPreference, fullMark: 100, ...(c && { compareValue: c.colorPreference }) },
     ]
   }, [playstyleProfile, compareProfile])
 

@@ -29,6 +29,7 @@ public class AnalyzerOptions
             ViolationType.GoodTouchViolation,
             ViolationType.MCVPViolation,
             ViolationType.MissedSave,
+            ViolationType.MisreadSave,
             ViolationType.MissedPrompt,
             ViolationType.MissedFinesse,
             ViolationType.BrokenFinesse

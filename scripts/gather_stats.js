@@ -109,7 +109,8 @@ async function main() {
         errorRate: data.rates.errorRate,
         missedSavesPerGame: data.rates.missedSavesPerGame,
         missedTechPerGame: data.rates.missedTechPerGame,
-        misplayRate: data.rates.misplayRate,
+        misreadSavesPerGame: data.rates.misreadSavesPerGame,
+        goodTouchPerClue: data.rates.goodTouchPerClue,
       })
 
       console.log(`  [${i + 1}/${qualifying.length}] ${player}: ${data.gamesAnalyzed} games, ${elapsed}s`)
@@ -130,7 +131,8 @@ async function main() {
     { key: 'errorRate', field: 'errorRate', csharpName: 'ErrorRatePercentiles' },
     { key: 'missedSavesPerGame', field: 'missedSavesPerGame', csharpName: 'MissedSavesPerGamePercentiles' },
     { key: 'missedTechPerGame', field: 'missedTechPerGame', csharpName: 'MissedTechPerGamePercentiles' },
-    { key: 'misplayRate', field: 'misplayRate', csharpName: 'MisplayRatePercentiles' },
+    { key: 'misreadSavesPerGame', field: 'misreadSavesPerGame', csharpName: 'MisreadSavesPerGamePercentiles' },
+    { key: 'goodTouchPerClue', field: 'goodTouchPerClue', csharpName: 'GoodTouchPerCluePercentiles' },
   ]
 
   console.log('\n=== Per-Player Rates ===')
@@ -143,9 +145,10 @@ async function main() {
     ' ErrR'.padStart(8) +
     ' MSv/G'.padStart(8) +
     ' MTch/G'.padStart(8) +
-    ' MispR'.padStart(8)
+    ' MRSv/G'.padStart(8) +
+    ' GT/Clu'.padStart(8)
   )
-  console.log('-'.repeat(86))
+  console.log('-'.repeat(94))
   for (const p of allRates.sort((a, b) => b.games - a.games)) {
     console.log(
       p.name.padEnd(22) +
@@ -156,7 +159,8 @@ async function main() {
       p.errorRate.toFixed(4).padStart(8) +
       p.missedSavesPerGame.toFixed(2).padStart(8) +
       p.missedTechPerGame.toFixed(2).padStart(8) +
-      p.misplayRate.toFixed(4).padStart(8)
+      p.misreadSavesPerGame.toFixed(2).padStart(8) +
+      p.goodTouchPerClue.toFixed(4).padStart(8)
     )
   }
 

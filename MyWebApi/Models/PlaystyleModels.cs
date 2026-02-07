@@ -16,6 +16,7 @@ public class PlaystyleResponse
     public int MissedSaves { get; set; }
     public int MissedPrompts { get; set; }
     public int MissedFinesses { get; set; }
+    public int MisreadSaves { get; set; }
     public PlaystyleRates Rates { get; set; } = new();
     public PlaystyleDimensions Dimensions { get; set; } = new();
 }
@@ -28,7 +29,9 @@ public class PlaystyleRates
     public double ErrorRate { get; set; }
     public double MissedSavesPerGame { get; set; }
     public double MissedTechPerGame { get; set; }
-    public double MisplayRate { get; set; }
+    public double MisreadSavesPerGame { get; set; }
+    public double GoodTouchPerClue { get; set; }
+    public double ColorClueRate { get; set; }
 }
 
 public class PlaystyleDimensions
@@ -40,4 +43,6 @@ public class PlaystyleDimensions
     public double Efficiency { get; set; }
     public double DiscardFrequency { get; set; }
     public double MisreadSaves { get; set; }
+    public double CleanClues { get; set; }
+    public double ColorPreference { get; set; }
 }

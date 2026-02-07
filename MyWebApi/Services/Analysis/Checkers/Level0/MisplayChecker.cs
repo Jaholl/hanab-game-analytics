@@ -27,55 +27,75 @@ public class MisplayChecker : IViolationChecker
         var suitName = AnalysisHelpers.GetSuitName(card.SuitIndex);
         var stackValue = context.StateBefore.PlayStacks[card.SuitIndex];
 
-        // At Level 2+, check blame attribution
-        if (context.Options.Level >= ConventionLevel.Level2_Intermediate && card.HasAnyClue)
+        // Look up the most recent clue that touched this card (shared by L1+ MisreadSave and L2+ blame)
+        ClueHistoryEntry? relevantClue = null;
+        if (card.HasAnyClue)
         {
-            var relevantClue = context.ClueHistory
+            relevantClue = context.ClueHistory
                 .Where(c => c.TargetPlayerIndex == context.CurrentPlayerIndex &&
                             c.TouchedDeckIndices.Contains(deckIndex))
                 .OrderByDescending(c => c.Turn)
                 .FirstOrDefault();
+        }
 
-            if (relevantClue != null)
+        // At Level 1+, detect misread saves: clued card was on chop when clued, player misplays it
+        if (context.Options.Level >= ConventionLevel.Level1_Beginner && relevantClue != null)
+        {
+            var handAtClueTime = context.States[relevantClue.Turn - 1].Hands[context.CurrentPlayerIndex];
+            var chopAtClueTime = AnalysisHelpers.GetChopCard(handAtClueTime);
+            if (chopAtClueTime != null && chopAtClueTime.DeckIndex == deckIndex)
             {
-                bool validFinesseExists = AnalysisHelpers.CheckForValidFinesse(
-                    relevantClue, context.StateBefore, context.Game, card);
-
-                if (!validFinesseExists)
+                context.Violations.Add(new RuleViolation
                 {
-                    var clueGiver = context.Game.Players[relevantClue.ClueGiverIndex];
-                    var clueType = relevantClue.ClueType == ActionType.ColorClue
-                        ? AnalysisHelpers.GetSuitName(relevantClue.ClueValue)
-                        : relevantClue.ClueValue.ToString();
+                    Turn = context.Turn,
+                    Player = context.CurrentPlayer,
+                    Type = ViolationType.MisreadSave,
+                    Severity = Severity.Warning,
+                    Description = $"Misread save clue as play clue: played {suitName} {card.Rank} but it was on chop when clued (needed {expectedRank})"
+                });
+            }
+        }
 
-                    bool wasFocus = relevantClue.FocusDeckIndex == deckIndex;
-                    string focusNote = wasFocus ? "" : " (player may have misread focus)";
+        // At Level 2+, check blame attribution
+        if (context.Options.Level >= ConventionLevel.Level2_Intermediate && relevantClue != null)
+        {
+            bool validFinesseExists = AnalysisHelpers.CheckForValidFinesse(
+                relevantClue, context.StateBefore, context.Game, card);
 
-                    context.Violations.Add(new RuleViolation
+            if (!validFinesseExists)
+            {
+                var clueGiver = context.Game.Players[relevantClue.ClueGiverIndex];
+                var clueType = relevantClue.ClueType == ActionType.ColorClue
+                    ? AnalysisHelpers.GetSuitName(relevantClue.ClueValue)
+                    : relevantClue.ClueValue.ToString();
+
+                bool wasFocus = relevantClue.FocusDeckIndex == deckIndex;
+                string focusNote = wasFocus ? "" : " (player may have misread focus)";
+
+                context.Violations.Add(new RuleViolation
+                {
+                    Turn = relevantClue.Turn,
+                    Player = clueGiver,
+                    Type = ViolationType.BadPlayClue,
+                    Severity = Severity.Critical,
+                    Description = $"Clue ({clueType}) to {context.CurrentPlayer} caused misplay of {suitName} {card.Rank} (needed {expectedRank}){focusNote}"
+                });
+
+                context.Violations.Add(new RuleViolation
+                {
+                    Turn = context.Turn,
+                    Player = context.CurrentPlayer,
+                    Type = ViolationType.Misplay,
+                    Severity = Severity.Info,
+                    Description = $"Played {suitName} {card.Rank} but needed {expectedRank} - misled by clue from {clueGiver}",
+                    Card = new CardIdentifier
                     {
-                        Turn = relevantClue.Turn,
-                        Player = clueGiver,
-                        Type = ViolationType.BadPlayClue,
-                        Severity = Severity.Critical,
-                        Description = $"Clue ({clueType}) to {context.CurrentPlayer} caused misplay of {suitName} {card.Rank} (needed {expectedRank}){focusNote}"
-                    });
-
-                    context.Violations.Add(new RuleViolation
-                    {
-                        Turn = context.Turn,
-                        Player = context.CurrentPlayer,
-                        Type = ViolationType.Misplay,
-                        Severity = Severity.Info,
-                        Description = $"Played {suitName} {card.Rank} but needed {expectedRank} - misled by clue from {clueGiver}",
-                        Card = new CardIdentifier
-                        {
-                            DeckIndex = deckIndex,
-                            SuitIndex = card.SuitIndex,
-                            Rank = card.Rank
-                        }
-                    });
-                    return;
-                }
+                        DeckIndex = deckIndex,
+                        SuitIndex = card.SuitIndex,
+                        Rank = card.Rank
+                    }
+                });
+                return;
             }
         }
 

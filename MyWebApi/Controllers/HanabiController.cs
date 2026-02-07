@@ -207,15 +207,17 @@ public class HanabiController : ControllerBase
     private static readonly double[] DiscardRatePercentiles =
         { 0.1498, 0.1739, 0.1848, 0.1924, 0.2083, 0.2163, 0.2222, 0.2340, 0.2418, 0.2496, 0.2853 };
     private static readonly double[] ClueRatePercentiles =
-        { 0.2302, 0.3333, 0.3451, 0.3520, 0.3586, 0.3713, 0.3767, 0.3839, 0.3952, 0.4048, 0.4468 };
+        { 0.2302, 0.3333, 0.3451, 0.3516, 0.3586, 0.3712, 0.3767, 0.3839, 0.3952, 0.4048, 0.4468 };
     private static readonly double[] ErrorRatePercentiles =
-        { 0.0032, 0.0127, 0.0157, 0.0185, 0.0199, 0.0225, 0.0259, 0.0300, 0.0373, 0.0492, 0.1691 };
+        { 0.0032, 0.0130, 0.0156, 0.0171, 0.0197, 0.0227, 0.0270, 0.0305, 0.0373, 0.0485, 0.1691 };
     private static readonly double[] MissedSavesPerGamePercentiles =
-        { 0.5400, 0.8200, 0.9100, 1.0800, 1.1800, 1.3500, 1.5000, 1.7400, 1.9700, 2.4000, 4.6800 };
+        { 0.5400, 0.8400, 0.9400, 1.0600, 1.2200, 1.3400, 1.5000, 1.7400, 1.9800, 2.2800, 5.0700 };
     private static readonly double[] MissedTechPerGamePercentiles =
-        { 0.0400, 0.2200, 0.2600, 0.3000, 0.3500, 0.4200, 0.5000, 0.6000, 0.6800, 0.9200, 1.6600 };
-    private static readonly double[] MisplayRatePercentiles =
-        { 0.0081, 0.0208, 0.0286, 0.0328, 0.0366, 0.0438, 0.0493, 0.0556, 0.0688, 0.0976, 0.2581 };
+        { 0.0400, 0.2200, 0.2400, 0.3000, 0.3600, 0.4000, 0.5000, 0.6000, 0.6800, 0.9200, 1.6600 };
+    private static readonly double[] MisreadSavesPerGamePercentiles =
+        { 0.0000, 0.0000, 0.0200, 0.0400, 0.0500, 0.0600, 0.0800, 0.0800, 0.1000, 0.1400, 0.4800 };
+    private static readonly double[] GoodTouchPerCluePercentiles =
+        { 0.0159, 0.0602, 0.0758, 0.0889, 0.0970, 0.1124, 0.1224, 0.1365, 0.1549, 0.1951, 0.2865 };
 
     /// <summary>
     /// Given a value and a sorted percentile table [p0..p100 in 10% steps],
@@ -278,7 +280,7 @@ public class HanabiController : ControllerBase
             int gamesAnalyzed = 0;
             int totalActions = 0, plays = 0, discards = 0, colorClues = 0, rankClues = 0;
             int misplays = 0, badDiscards = 0, goodTouchViolations = 0, mcvpViolations = 0;
-            int missedSaves = 0, missedPrompts = 0, missedFinesses = 0;
+            int missedSaves = 0, missedPrompts = 0, missedFinesses = 0, misreadSaves = 0;
 
             var tasks = games.Select(async game =>
             {
@@ -325,6 +327,7 @@ public class HanabiController : ControllerBase
                     int gMissedPrompts = playerViolations.Count(v => v.Type == ViolationType.MissedPrompt);
                     int gMissedFinesses = playerViolations.Count(v =>
                         v.Type == ViolationType.MissedFinesse || v.Type == ViolationType.BrokenFinesse);
+                    int gMisreadSaves = playerViolations.Count(v => v.Type == ViolationType.MisreadSave);
 
                     lock (lockObj)
                     {
@@ -341,6 +344,7 @@ public class HanabiController : ControllerBase
                         missedSaves += gMissedSaves;
                         missedPrompts += gMissedPrompts;
                         missedFinesses += gMissedFinesses;
+                        misreadSaves += gMisreadSaves;
                     }
                 }
                 catch (Exception ex)
@@ -369,19 +373,25 @@ public class HanabiController : ControllerBase
                 rates.ErrorRate = Math.Round((double)(misplays + badDiscards) / totalActions, 4);
                 rates.MissedSavesPerGame = Math.Round((double)missedSaves / gamesAnalyzed, 2);
                 rates.MissedTechPerGame = Math.Round((double)(missedPrompts + missedFinesses) / gamesAnalyzed, 2);
-                rates.MisplayRate = plays > 0 ? Math.Round((double)misplays / plays, 4) : 0;
+                rates.MisreadSavesPerGame = Math.Round((double)misreadSaves / gamesAnalyzed, 2);
+                rates.GoodTouchPerClue = totalClues > 0 ? Math.Round((double)goodTouchViolations / totalClues, 4) : 0;
+                rates.ColorClueRate = totalClues > 0 ? Math.Round((double)colorClues / totalClues, 4) : 0.5;
 
                 // All dimensions use population percentiles (0-100)
                 // Inverted: high raw rate = bad, so 100 - percentile
                 dimensions.Accuracy = Math.Round(100 - ToPercentile(rates.ErrorRate, ErrorRatePercentiles), 1);
                 dimensions.Teamwork = Math.Round(100 - ToPercentile(rates.MissedSavesPerGame, MissedSavesPerGamePercentiles), 1);
                 dimensions.Technique = Math.Round(100 - ToPercentile(rates.MissedTechPerGame, MissedTechPerGamePercentiles), 1);
-                dimensions.MisreadSaves = Math.Round(100 - ToPercentile(rates.MisplayRate, MisplayRatePercentiles), 1);
+                dimensions.MisreadSaves = Math.Round(100 - ToPercentile(rates.MisreadSavesPerGame, MisreadSavesPerGamePercentiles), 1);
+                dimensions.CleanClues = Math.Round(100 - ToPercentile(rates.GoodTouchPerClue, GoodTouchPerCluePercentiles), 1);
 
                 // Neutral behavioral: direct percentile
                 dimensions.Boldness = Math.Round(ToPercentile(rates.PlayRate, PlayRatePercentiles), 1);
                 dimensions.Efficiency = Math.Round(ToPercentile(rates.ClueRate, ClueRatePercentiles), 1);
                 dimensions.DiscardFrequency = Math.Round(ToPercentile(rates.DiscardRate, DiscardRatePercentiles), 1);
+
+                // Raw ratio (not percentile-based): 0 = all rank, 100 = all color
+                dimensions.ColorPreference = Math.Round(rates.ColorClueRate * 100, 1);
             }
 
             var result = new PlaystyleResponse
@@ -400,6 +410,7 @@ public class HanabiController : ControllerBase
                 MissedSaves = missedSaves,
                 MissedPrompts = missedPrompts,
                 MissedFinesses = missedFinesses,
+                MisreadSaves = misreadSaves,
                 Rates = rates,
                 Dimensions = dimensions
             };

@@ -46,6 +46,7 @@ public static class ViolationType
     public const string GoodTouchViolation = "GoodTouchViolation";
     public const string MCVPViolation = "MCVPViolation";
     public const string MissedSave = "MissedSave";
+    public const string MisreadSave = "MisreadSave";
 
     // Phase 3 - Prompt/Finesse
     public const string MissedPrompt = "MissedPrompt";
