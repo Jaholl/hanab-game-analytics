@@ -77,7 +77,7 @@ function App() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5191'}/hanabi/history/${username}?size=100`)
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://hanab-analytics-api.azurewebsites.net'}/hanabi/history/${username}?size=100`)
       if (!response.ok) throw new Error('Failed to fetch game history')
       const data = await response.json()
       setGames(data.rows || [])
@@ -105,7 +105,7 @@ function App() {
     setGameAnalysis(null)
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5191'}/hanabi/game/${gameId}/analysis`)
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://hanab-analytics-api.azurewebsites.net'}/hanabi/game/${gameId}/analysis`)
       if (!response.ok) {
         const text = await response.text()
         throw new Error(text || 'Failed to load game analysis')
