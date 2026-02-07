@@ -373,8 +373,7 @@ function App() {
     const d = playstyleProfile.dimensions
     const c = compareProfile?.dimensions
     return [
-      { axis: 'Low Errors', value: d.accuracy, fullMark: 100, ...(c && { compareValue: c.accuracy }) },
-      { axis: 'Clean Clues', value: d.clueQuality, fullMark: 100, ...(c && { compareValue: c.clueQuality }) },
+      { axis: 'Error/Move', value: d.accuracy, fullMark: 100, ...(c && { compareValue: c.accuracy }) },
       { axis: 'Saves Cards', value: d.teamwork, fullMark: 100, ...(c && { compareValue: c.teamwork }) },
       { axis: 'Reads Finesses', value: d.technique, fullMark: 100, ...(c && { compareValue: c.technique }) },
       { axis: 'Plays Often', value: d.boldness, fullMark: 100, ...(c && { compareValue: c.boldness }) },

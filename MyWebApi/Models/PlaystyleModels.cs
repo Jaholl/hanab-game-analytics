@@ -26,7 +26,6 @@ public class PlaystyleRates
     public double DiscardRate { get; set; }
     public double ClueRate { get; set; }
     public double ErrorRate { get; set; }
-    public double BadClueRate { get; set; }
     public double MissedSavesPerGame { get; set; }
     public double MissedTechPerGame { get; set; }
     public double MisplayRate { get; set; }
@@ -35,7 +34,6 @@ public class PlaystyleRates
 public class PlaystyleDimensions
 {
     public double Accuracy { get; set; }
-    public double ClueQuality { get; set; }
     public double Teamwork { get; set; }
     public double Technique { get; set; }
     public double Boldness { get; set; }

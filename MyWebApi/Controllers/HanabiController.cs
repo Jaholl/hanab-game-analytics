@@ -200,24 +200,22 @@ public class HanabiController : ControllerBase
         }
     }
 
-    // Percentile lookup tables from 47-player population study (No Variant, 50 games each)
+    // Percentile lookup tables from 119-player population study (No Variant, 50 games each)
     // Each array: [p0, p10, p20, p30, p40, p50, p60, p70, p80, p90, p100]
     private static readonly double[] PlayRatePercentiles =
-        { 0.3748, 0.3887, 0.4092, 0.4191, 0.4235, 0.4364, 0.4391, 0.4444, 0.4639, 0.4784, 0.4865 };
+        { 0.3100, 0.3570, 0.3796, 0.3967, 0.4066, 0.4212, 0.4311, 0.4414, 0.4600, 0.4715, 0.5576 };
     private static readonly double[] DiscardRatePercentiles =
-        { 0.1489, 0.1658, 0.1787, 0.1869, 0.2020, 0.2083, 0.2169, 0.2196, 0.2301, 0.2367, 0.2589 };
+        { 0.1498, 0.1739, 0.1848, 0.1924, 0.2083, 0.2163, 0.2222, 0.2340, 0.2418, 0.2496, 0.2853 };
     private static readonly double[] ClueRatePercentiles =
-        { 0.3063, 0.3158, 0.3328, 0.3470, 0.3542, 0.3608, 0.3662, 0.3743, 0.3887, 0.4018, 0.4385 };
+        { 0.2302, 0.3333, 0.3451, 0.3520, 0.3586, 0.3713, 0.3767, 0.3839, 0.3952, 0.4048, 0.4468 };
     private static readonly double[] ErrorRatePercentiles =
-        { 0.0000, 0.0141, 0.0188, 0.0220, 0.0241, 0.0284, 0.0294, 0.0305, 0.0338, 0.0458, 0.0689 };
-    private static readonly double[] BadClueRatePercentiles =
-        { 0.0670, 0.0982, 0.1295, 0.1459, 0.1600, 0.1724, 0.2068, 0.2524, 0.2917, 0.3372, 0.3612 };
+        { 0.0032, 0.0127, 0.0157, 0.0185, 0.0199, 0.0225, 0.0259, 0.0300, 0.0373, 0.0492, 0.1691 };
     private static readonly double[] MissedSavesPerGamePercentiles =
-        { 0.6100, 0.9000, 1.1600, 1.2900, 1.3800, 1.5700, 1.7100, 2.1800, 3.0600, 3.8800, 4.6800 };
+        { 0.5400, 0.8200, 0.9100, 1.0800, 1.1800, 1.3500, 1.5000, 1.7400, 1.9700, 2.4000, 4.6800 };
     private static readonly double[] MissedTechPerGamePercentiles =
-        { 0.1200, 0.2000, 0.2600, 0.2900, 0.3300, 0.4300, 0.5700, 0.6400, 0.7700, 1.0000, 1.2600 };
+        { 0.0400, 0.2200, 0.2600, 0.3000, 0.3500, 0.4200, 0.5000, 0.6000, 0.6800, 0.9200, 1.6600 };
     private static readonly double[] MisplayRatePercentiles =
-        { 0.0000, 0.0293, 0.0343, 0.0402, 0.0469, 0.0524, 0.0581, 0.0615, 0.0667, 0.0849, 0.1406 };
+        { 0.0081, 0.0208, 0.0286, 0.0328, 0.0366, 0.0438, 0.0493, 0.0556, 0.0688, 0.0976, 0.2581 };
 
     /// <summary>
     /// Given a value and a sorted percentile table [p0..p100 in 10% steps],
@@ -369,7 +367,6 @@ public class HanabiController : ControllerBase
                 rates.DiscardRate = Math.Round((double)discards / totalActions, 4);
                 rates.ClueRate = Math.Round((double)totalClues / totalActions, 4);
                 rates.ErrorRate = Math.Round((double)(misplays + badDiscards) / totalActions, 4);
-                rates.BadClueRate = totalClues > 0 ? Math.Round((double)(goodTouchViolations + mcvpViolations) / totalClues, 4) : 0;
                 rates.MissedSavesPerGame = Math.Round((double)missedSaves / gamesAnalyzed, 2);
                 rates.MissedTechPerGame = Math.Round((double)(missedPrompts + missedFinesses) / gamesAnalyzed, 2);
                 rates.MisplayRate = plays > 0 ? Math.Round((double)misplays / plays, 4) : 0;
@@ -377,7 +374,6 @@ public class HanabiController : ControllerBase
                 // All dimensions use population percentiles (0-100)
                 // Inverted: high raw rate = bad, so 100 - percentile
                 dimensions.Accuracy = Math.Round(100 - ToPercentile(rates.ErrorRate, ErrorRatePercentiles), 1);
-                dimensions.ClueQuality = Math.Round(100 - ToPercentile(rates.BadClueRate, BadClueRatePercentiles), 1);
                 dimensions.Teamwork = Math.Round(100 - ToPercentile(rates.MissedSavesPerGame, MissedSavesPerGamePercentiles), 1);
                 dimensions.Technique = Math.Round(100 - ToPercentile(rates.MissedTechPerGame, MissedTechPerGamePercentiles), 1);
                 dimensions.MisreadSaves = Math.Round(100 - ToPercentile(rates.MisplayRate, MisplayRatePercentiles), 1);

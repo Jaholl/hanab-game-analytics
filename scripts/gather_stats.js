@@ -34,78 +34,48 @@ async function main() {
   console.log(`Delay between API calls: ${DELAY_MS}ms`)
   console.log(`Target players: ${TARGET_PLAYERS}`)
 
-  // Phase 1: Discover players via prolific seed players on hanab.live
-  const seedQueries = [
-    { name: 'timotree', sizes: [100, 100, 100] },
-    { name: 'sjdrodge', sizes: [100, 100] },
-    { name: 'Gestalt', sizes: [100, 100] },
-    { name: 'Jake_Stiles', sizes: [100] },
-    { name: 'florrat2', sizes: [100] },
-    { name: 'sodiumdebt', sizes: [100] },
-    { name: 'jaholl', sizes: [100] },
-    { name: 'FairyBoots', sizes: [100] },
-    { name: 'Estabir', sizes: [100] },
-    { name: 'robense', sizes: [100] },
-    { name: 'Fireheart', sizes: [100] },
-    { name: 'kimbifille', sizes: [100] },
-    { name: 'pianoblook', sizes: [100] },
-    { name: 'MarkusKaworworking', sizes: [100] },
-    { name: 'Razvopp', sizes: [100] },
-  ]
+  // Phase 1: Discover players via global No Variant game history
+  // Scan enough pages to find many unique players, then verify each via their history
+  const playerNames = new Set()
+  const PAGES_TO_FETCH = 50 // 50 pages × 100 games = 5000 games scanned
 
-  const playerGameCounts = {} // player -> Set of game IDs
-
-  console.log('\n=== Phase 1: Discovering players ===')
-  for (const { name, sizes } of seedQueries) {
-    for (let page = 0; page < sizes.length; page++) {
-      try {
-        const data = await fetchJSON(`https://hanab.live/api/v1/history/${name}?size=${sizes[page]}`)
-        const v0Games = (data.rows || []).filter(r => r.variant === 0)
-        for (const g of v0Games) {
-          g.users.split(', ').forEach(u => {
-            const p = u.trim()
-            if (!playerGameCounts[p]) playerGameCounts[p] = new Set()
-            playerGameCounts[p].add(g.id)
-          })
-        }
-        console.log(`  ${name} page ${page}: ${v0Games.length} v0 games`)
-        await sleep(DISCOVERY_DELAY_MS)
-      } catch (e) {
-        console.log(`  ${name} page ${page}: FAILED (${e.message})`)
+  console.log('\n=== Phase 1: Discovering player names from global No Variant games ===')
+  for (let page = 0; page < PAGES_TO_FETCH; page++) {
+    try {
+      const data = await fetchJSON(`https://hanab.live/api/v1/variants/0?size=100&page=${page}`)
+      const games = data.rows || []
+      if (games.length === 0) {
+        console.log(`  page ${page}: no more games, stopping`)
+        break
       }
+      for (const g of games) {
+        g.users.split(', ').forEach(u => playerNames.add(u.trim()))
+      }
+      console.log(`  page ${page}: ${games.length} games, ${playerNames.size} unique players so far`)
+      await sleep(DISCOVERY_DELAY_MS)
+    } catch (e) {
+      console.log(`  page ${page}: FAILED (${e.message})`)
     }
   }
 
-  // Sort candidates by number of observed games
-  const candidates = Object.entries(playerGameCounts)
-    .map(([name, ids]) => ({ name, observed: ids.size }))
-    .sort((a, b) => b.observed - a.observed)
+  console.log(`\nFound ${playerNames.size} unique player names`)
 
-  console.log(`\nFound ${candidates.length} unique players`)
-
-  // Phase 1b: Verify candidates have 50+ v0 games
+  // Phase 1b: Verify each candidate has 50+ No Variant games via their history
   const qualifying = []
-  console.log('\n=== Phase 1b: Verifying 50+ v0 games ===')
+  console.log('\n=== Phase 1b: Verifying 50+ No Variant games ===')
 
-  for (const c of candidates) {
+  for (const name of playerNames) {
     if (qualifying.length >= TARGET_PLAYERS) break
-
-    if (c.observed >= 50) {
-      qualifying.push(c.name)
-      console.log(`  ${c.name}: ${c.observed} observed (auto-qualify)`)
-      continue
-    }
-
     try {
-      const data = await fetchJSON(`https://hanab.live/api/v1/history/${c.name}?size=100`)
+      const data = await fetchJSON(`https://hanab.live/api/v1/history/${encodeURIComponent(name)}?size=100`)
       const v0Count = (data.rows || []).filter(r => r.variant === 0).length
       if (v0Count >= 50) {
-        qualifying.push(c.name)
-        console.log(`  ${c.name}: ${v0Count} v0 games - QUALIFIES`)
+        qualifying.push(name)
+        console.log(`  ${name}: ${v0Count} v0 games - QUALIFIES (${qualifying.length}/${TARGET_PLAYERS})`)
       }
       await sleep(DISCOVERY_DELAY_MS)
     } catch (e) {
-      console.log(`  ${c.name}: FAILED (${e.message})`)
+      console.log(`  ${name}: FAILED (${e.message})`)
     }
   }
 
@@ -137,7 +107,6 @@ async function main() {
         discardRate: data.rates.discardRate,
         clueRate: data.rates.clueRate,
         errorRate: data.rates.errorRate,
-        badClueRate: data.rates.badClueRate,
         missedSavesPerGame: data.rates.missedSavesPerGame,
         missedTechPerGame: data.rates.missedTechPerGame,
         misplayRate: data.rates.misplayRate,
@@ -159,7 +128,6 @@ async function main() {
     { key: 'discardRate', field: 'discardRate', csharpName: 'DiscardRatePercentiles' },
     { key: 'clueRate', field: 'clueRate', csharpName: 'ClueRatePercentiles' },
     { key: 'errorRate', field: 'errorRate', csharpName: 'ErrorRatePercentiles' },
-    { key: 'badClueRate', field: 'badClueRate', csharpName: 'BadClueRatePercentiles' },
     { key: 'missedSavesPerGame', field: 'missedSavesPerGame', csharpName: 'MissedSavesPerGamePercentiles' },
     { key: 'missedTechPerGame', field: 'missedTechPerGame', csharpName: 'MissedTechPerGamePercentiles' },
     { key: 'misplayRate', field: 'misplayRate', csharpName: 'MisplayRatePercentiles' },
@@ -173,12 +141,11 @@ async function main() {
     ' DiscR'.padStart(8) +
     ' ClueR'.padStart(8) +
     ' ErrR'.padStart(8) +
-    ' BadClR'.padStart(8) +
     ' MSv/G'.padStart(8) +
     ' MTch/G'.padStart(8) +
     ' MispR'.padStart(8)
   )
-  console.log('-'.repeat(94))
+  console.log('-'.repeat(86))
   for (const p of allRates.sort((a, b) => b.games - a.games)) {
     console.log(
       p.name.padEnd(22) +
@@ -187,11 +154,15 @@ async function main() {
       p.discardRate.toFixed(4).padStart(8) +
       p.clueRate.toFixed(4).padStart(8) +
       p.errorRate.toFixed(4).padStart(8) +
-      p.badClueRate.toFixed(4).padStart(8) +
       p.missedSavesPerGame.toFixed(2).padStart(8) +
       p.missedTechPerGame.toFixed(2).padStart(8) +
       p.misplayRate.toFixed(4).padStart(8)
     )
+  }
+
+  if (allRates.length === 0) {
+    console.log('\nNo player data collected. Cannot compute percentiles.')
+    return
   }
 
   console.log('\n=== Distribution Summary ===')
