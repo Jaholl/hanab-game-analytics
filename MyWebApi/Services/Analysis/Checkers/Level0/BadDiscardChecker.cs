@@ -45,13 +45,25 @@ public class BadDiscardChecker : IViolationChecker
             if (context.StateBefore.PlayStacks[card.SuitIndex] < card.Rank &&
                 !AnalysisHelpers.IsSuitDead(card.SuitIndex, card.Rank, context.StateBefore))
             {
+                // If the card only became critical due to the immediately preceding action,
+                // the current player had no chance to be informed — downgrade to warning
+                var severity = Severity.Critical;
+                if (context.ActionIndex > 0)
+                {
+                    var prevState = context.States[context.ActionIndex - 1];
+                    if (!AnalysisHelpers.IsCardCritical(card, prevState, context.Game))
+                        severity = Severity.Warning;
+                }
+
                 context.Violations.Add(new RuleViolation
                 {
                     Turn = context.Turn,
                     Player = context.CurrentPlayer,
                     Type = ViolationType.BadDiscardCritical,
-                    Severity = Severity.Critical,
-                    Description = $"Discarded {suitName} {card.Rank} - it was the last copy!"
+                    Severity = severity,
+                    Description = severity == Severity.Warning
+                        ? $"Discarded {suitName} {card.Rank} - it became critical last turn"
+                        : $"Discarded {suitName} {card.Rank} - it was the last copy!"
                 });
             }
         }

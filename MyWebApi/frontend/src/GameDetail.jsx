@@ -63,7 +63,7 @@ function GameDetail({ gameId, analysis, loading, error, onBack }) {
   }
 
   const handleViolationClick = (index, violation) => {
-    if (violation.severity !== 'critical') return
+    if (violation.severity === 'info') return
     if (expandedViolation === index) {
       setExpandedViolation(null)
       setViewingTurn(null)
@@ -218,11 +218,13 @@ function GameDetail({ gameId, analysis, loading, error, onBack }) {
 
           <div className="violations-list">
             {violations.map((violation, i) => {
+              const isExpandable = violation.severity !== 'info'
               const isCritical = violation.severity === 'critical'
               const isExpanded = expandedViolation === i
               const activeTurn = isExpanded ? viewingTurn : null
               const state = activeTurn ? getStateForTurn(activeTurn) : null
               const minTurn = Math.max(1, violation.turn - 5)
+              const maxTurn = Math.min(game.actions?.length || violation.turn, violation.turn + 5)
 
               // Get previous action for the currently viewed turn
               const prevActionIndex = activeTurn ? activeTurn - 2 : violation.turn - 2
@@ -231,7 +233,7 @@ function GameDetail({ gameId, analysis, loading, error, onBack }) {
               return (
                 <motion.div
                   key={i}
-                  className={`violation-card ${getSeverityClass(violation.severity)} ${isCritical ? 'expandable' : ''} ${isExpanded ? 'expanded' : ''}`}
+                  className={`violation-card ${getSeverityClass(violation.severity)} ${isExpandable ? 'expandable' : ''} ${isExpanded ? 'expanded' : ''}`}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.3 + i * 0.05 }}
@@ -244,7 +246,7 @@ function GameDetail({ gameId, analysis, loading, error, onBack }) {
                     <span className="violation-turn">Turn {violation.turn}</span>
                     <span className="violation-player">{violation.player}</span>
                     <span className="violation-type">{formatViolationType(violation.type)}</span>
-                    {isCritical && (
+                    {isExpandable && (
                       <span className="violation-expand-indicator">
                         {isExpanded ? '−' : '+'}
                       </span>
@@ -263,7 +265,7 @@ function GameDetail({ gameId, analysis, loading, error, onBack }) {
                         violationTurn={violation.turn}
                         minTurn={minTurn}
                         onPrevTurn={() => setViewingTurn(t => Math.max(minTurn, t - 1))}
-                        onNextTurn={() => setViewingTurn(t => Math.min(violation.turn, t + 1))}
+                        onNextTurn={() => setViewingTurn(t => Math.min(maxTurn, t + 1))}
                       />
                     )}
                   </AnimatePresence>

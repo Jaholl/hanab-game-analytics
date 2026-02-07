@@ -73,11 +73,41 @@ public class MissedSaveChecker : IViolationChecker
                 }
             }
 
+            // Check if the current discard makes this chop card the last copy
+            if (!needsSave && action.Type == ActionType.Discard &&
+                state.PlayStacks[chopCard.SuitIndex] < chopCard.Rank)
+            {
+                var discardedCard = state.Hands[context.CurrentPlayerIndex]
+                    .FirstOrDefault(c => c.DeckIndex == action.Target);
+                if (discardedCard != null &&
+                    discardedCard.SuitIndex == chopCard.SuitIndex &&
+                    discardedCard.Rank == chopCard.Rank)
+                {
+                    var totalCopies = AnalysisHelpers.CardCopiesPerRank[chopCard.Rank];
+                    var discardedCount = state.DiscardPile
+                        .Count(c => c.SuitIndex == chopCard.SuitIndex && c.Rank == chopCard.Rank);
+                    // After this discard, remaining = totalCopies - discardedCount - 1
+                    if (totalCopies - discardedCount - 1 == 1)
+                    {
+                        needsSave = true;
+                        saveReason = "discarding makes it the last copy";
+                    }
+                }
+            }
+
             if (needsSave && !chopCard.HasAnyClue)
             {
                 // Suppress if the card is saved by another player within one round
                 if (IsChopCardSavedSoon(context, chopCard, p))
                     continue;
+
+                // Elevate to critical if the discard directly caused the card to be lost
+                var severity = Severity.Warning;
+                if (saveReason == "discarding makes it the last copy" &&
+                    WasChopCardLost(context, chopCard))
+                {
+                    severity = Severity.Critical;
+                }
 
                 var suitName = AnalysisHelpers.GetSuitName(chopCard.SuitIndex);
                 string actionDescription = action.Type switch
@@ -92,11 +122,28 @@ public class MissedSaveChecker : IViolationChecker
                     Turn = context.Turn,
                     Player = context.CurrentPlayer,
                     Type = ViolationType.MissedSave,
-                    Severity = Severity.Warning,
+                    Severity = severity,
                     Description = $"{actionDescription} {game.Players[p]}'s {suitName} {chopCard.Rank} on chop ({saveReason})"
                 });
             }
         }
+    }
+
+    /// <summary>
+    /// Checks if the chop card was actually discarded later in the game.
+    /// </summary>
+    private static bool WasChopCardLost(AnalysisContext context, CardInHand chopCard)
+    {
+        var game = context.Game;
+        for (int i = context.ActionIndex + 1; i < game.Actions.Count; i++)
+        {
+            var action = game.Actions[i];
+            if (action.Type == ActionType.Discard && action.Target == chopCard.DeckIndex)
+                return true;
+            if (action.Type == ActionType.Play && action.Target == chopCard.DeckIndex)
+                return false;
+        }
+        return false;
     }
 
     /// <summary>

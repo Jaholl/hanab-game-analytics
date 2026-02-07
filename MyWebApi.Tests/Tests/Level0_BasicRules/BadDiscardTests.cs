@@ -166,8 +166,9 @@ public class BadDiscardTests
             .Discard(5) // Bob discards R2 (critical - last copy)
             .BuildAndAnalyze();
 
-        // Assert
-        violations.Should().ContainViolationWithSeverity(ViolationType.BadDiscardCritical, Severity.Critical);
+        // Assert - downgraded to warning because the card only became critical
+        // on the immediately preceding action (Bob had no chance to know)
+        violations.Should().ContainViolationWithSeverity(ViolationType.BadDiscardCritical, Severity.Warning);
     }
 
     [Fact]
