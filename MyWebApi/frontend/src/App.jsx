@@ -373,13 +373,13 @@ function App() {
     const d = playstyleProfile.dimensions
     const c = compareProfile?.dimensions
     return [
-      { axis: 'Error/Move', value: d.accuracy, fullMark: 100, ...(c && { compareValue: c.accuracy }) },
-      { axis: 'Saves Cards', value: d.teamwork, fullMark: 100, ...(c && { compareValue: c.teamwork }) },
-      { axis: 'Reads Finesses', value: d.technique, fullMark: 100, ...(c && { compareValue: c.technique }) },
-      { axis: 'Plays Often', value: d.boldness, fullMark: 100, ...(c && { compareValue: c.boldness }) },
-      { axis: 'Clues Often', value: d.efficiency, fullMark: 100, ...(c && { compareValue: c.efficiency }) },
-      { axis: 'Discards Often', value: d.discardFrequency, fullMark: 100, ...(c && { compareValue: c.discardFrequency }) },
-      { axis: 'Misreads Saves', value: d.misreadSaves, fullMark: 100, ...(c && { compareValue: c.misreadSaves }) },
+      { axis: 'Error/Move', desc: 'Fewer strikes and critical discards per move', value: d.accuracy, fullMark: 100, ...(c && { compareValue: c.accuracy }) },
+      { axis: 'Saves Cards', desc: 'Saves teammates\' critical/unique cards before they discard', value: d.teamwork, fullMark: 100, ...(c && { compareValue: c.teamwork }) },
+      { axis: 'Reads Finesses', desc: 'Recognizes and responds to prompts and finesses', value: d.technique, fullMark: 100, ...(c && { compareValue: c.technique }) },
+      { axis: 'Plays Often', desc: 'Proportion of turns spent playing cards', value: d.boldness, fullMark: 100, ...(c && { compareValue: c.boldness }) },
+      { axis: 'Clues Often', desc: 'Proportion of turns spent giving clues', value: d.efficiency, fullMark: 100, ...(c && { compareValue: c.efficiency }) },
+      { axis: 'Discards Often', desc: 'Proportion of turns spent discarding', value: d.discardFrequency, fullMark: 100, ...(c && { compareValue: c.discardFrequency }) },
+      { axis: 'Misreads Saves', desc: 'Lower misplay rate — doesn\'t confuse save clues for play clues', value: d.misreadSaves, fullMark: 100, ...(c && { compareValue: c.misreadSaves }) },
     ]
   }, [playstyleProfile, compareProfile])
 
@@ -553,7 +553,15 @@ function App() {
                     <ResponsiveContainer width="100%" height="100%">
                       <RadarChart data={playstyleData} cx="50%" cy="50%" outerRadius="70%">
                         <PolarGrid stroke="#30363d" />
-                        <PolarAngleAxis dataKey="axis" tick={{ fill: '#c9d1d9', fontSize: 12 }} />
+                        <PolarAngleAxis dataKey="axis" tick={({ payload, x, y, textAnchor, ...rest }) => {
+                          const item = playstyleData.find(d => d.axis === payload.value)
+                          return (
+                            <text x={x} y={y} textAnchor={textAnchor} fill="#c9d1d9" fontSize={12} style={{ cursor: 'help' }}>
+                              {payload.value}
+                              {item?.desc && <title>{item.desc}</title>}
+                            </text>
+                          )
+                        }} />
                         <Radar
                           name={username}
                           dataKey="value"
@@ -578,6 +586,7 @@ function App() {
                             return (
                               <div className="custom-tooltip">
                                 <p className="tooltip-label">{d.axis}</p>
+                                {d.desc && <p className="tooltip-desc">{d.desc}</p>}
                                 <p className="tooltip-value" style={{ color: CHART_COLORS.cyan }}>
                                   {username}: {d.value.toFixed(1)}
                                 </p>

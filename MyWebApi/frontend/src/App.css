@@ -832,6 +832,12 @@
   margin-bottom: var(--space-xs);
 }
 
+.tooltip-desc {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-bottom: var(--space-xs);
+}
+
 .tooltip-value {
   color: var(--ember);
   font-size: 1.1rem;
