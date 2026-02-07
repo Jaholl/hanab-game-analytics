@@ -125,4 +125,126 @@ public class MisplayCostTests
 
         violations.Should().NotContainViolation(ViolationType.MisplayCostViolation);
     }
+
+    [Fact]
+    public void ZeroClueTokens_CannotPrevent_NoViolation()
+    {
+        // Edge case: Player has 0 clue tokens before their action, so they
+        // cannot give a clue to prevent the next player's misplay.
+        // The checker correctly returns early when ClueTokens == 0.
+        //
+        // 2-player, hand size 5.
+        // Alice(0-4): R1,Y1,B1,G1,P1
+        // Bob(5-9): R3,Y2,B2,G2,P2 - R3 not playable (stacks at 0)
+        // Draw: R4,Y3
+        //
+        // Use 8 clues first to reach 0, then test.
+        // Actually, WithClueTokens(0) only modifies states[0].
+        // After 8 clue actions we would be at 0 tokens. But we need specific
+        // setup. Let us use a long sequence of clues to drain tokens.
+        //
+        // Better approach: 3-player game where many clues drain the token pool.
+        // Alice(0-4): R1,Y1,B1,G1,P1
+        // Bob(5-9): R3,Y2,B2,G2,P2
+        // Charlie(10-14): Y3,B3,G3,P3,R4
+        // Draw: R5,Y4,B4,G4,P4,R2,Y5,B5
+        //
+        // We need to give 8 clues total to reach 0, then have Alice discard
+        // (which brings tokens to 1), then Bob misplays. But the check is on
+        // StateBefore for Alice's discard, which would be 0. Perfect.
+        //
+        // Turns 1-8: Alternate clues between 3 players (8 clues = 0 tokens)
+        // Turn 9 (action index 8): Alice discards (0 tokens before -> cannot clue)
+        // Turn 10 (action index 9): Bob plays R3 -> misplay
+        var (game, states, violations) = GameBuilder.Create()
+            .WithPlayers("Alice", "Bob", "Charlie")
+            .WithDeck(
+                "R1,Y1,B1,G1,P1," +
+                "R3,Y2,B2,G2,P2," +
+                "Y3,B3,G3,P3,R4," +
+                "R5,Y4,B4,G4,P4,R2,Y5,B5")
+            .AtAdvancedLevel()
+            // Give clue to Bob about Red (Bob has R3)
+            .ColorClue(1, "Red")       // T1 Alice: 7 tokens
+            .RankClue(0, 1)              // T2 Bob: 6 tokens
+            .RankClue(0, 1)              // T3 Charlie: 5 tokens
+            .RankClue(1, 2)              // T4 Alice: 4 tokens
+            .RankClue(2, 3)              // T5 Bob: 3 tokens
+            .RankClue(0, 1)              // T6 Charlie: 2 tokens
+            .RankClue(1, 2)              // T7 Alice: 1 token
+            .RankClue(2, 3)              // T8 Bob: 0 tokens
+            // Now 0 clue tokens. Alice cannot give a clue.
+            .Discard(4)                  // T9 Alice: discards P1 (0 tokens before action)
+            .Play(5)                     // T10 Bob: plays R3 -> MISPLAY
+            .BuildAndAnalyze();
+
+        // Alice had 0 clue tokens before discarding. She could not prevent misplay.
+        violations.Should().NotContainViolationForPlayer(
+            ViolationType.MisplayCostViolation, "Alice");
+    }
+
+    [Fact]
+    public void NextPlayerMisplaysUncluedCard_NoViolation()
+    {
+        // Edge case: Bob misplays an UNCLUED card (blind play attempt).
+        // The MisplayCost convention only applies to clued cards where
+        // the player believes the card is playable. Blind plays are voluntary
+        // risks, not something the previous player should prevent.
+        //
+        // 2-player, hand size 5.
+        // Alice(0-4): R1,Y1,B1,G1,P1
+        // Bob(5-9): R3,Y2,B2,G2,P2 - R3 unclued, not playable
+        // Draw: R4,Y3
+        var (game, states, violations) = GameBuilder.Create()
+            .WithPlayers("Alice", "Bob")
+            .WithDeck("R1,Y1,B1,G1,P1,R3,Y2,B2,G2,P2,R4,Y3")
+            .AtAdvancedLevel()
+            .Discard(4)           // T1 Alice: discards P1
+            .Play(5)              // T2 Bob: plays R3 (unclued) -> MISPLAY
+            .BuildAndAnalyze();
+
+        // Bob's R3 is unclued. Checker should not flag Alice.
+        violations.Should().NotContainViolation(ViolationType.MisplayCostViolation);
+    }
+
+    [Fact]
+    public void NextPlayIsSuccessful_NoViolation()
+    {
+        // Edge case: The next player plays a card and it is SUCCESSFUL.
+        // There is no misplay to prevent. Checker should not fire.
+        //
+        // 2-player, hand size 5.
+        // Alice(0-4): R2,Y1,B1,G1,P1
+        // Bob(5-9): R1,Y2,B2,G2,P2 - R1 IS playable
+        // Draw: R3,Y3
+        var (game, states, violations) = GameBuilder.Create()
+            .WithPlayers("Alice", "Bob")
+            .WithDeck("R2,Y1,B1,G1,P1,R1,Y2,B2,G2,P2,R3,Y3")
+            .AtAdvancedLevel()
+            .ColorClue(1, "Red")  // T1 Alice: clues Bob Red (touches R1)
+            .Play(5)               // T2 Bob: plays R1 -> SUCCESS
+            .BuildAndAnalyze();
+
+        violations.Should().NotContainViolation(ViolationType.MisplayCostViolation);
+    }
+
+    [Fact]
+    public void LastActionInGame_NoNextAction_NoViolation()
+    {
+        // Edge case: Current action is the last in the game. There is no
+        // next action to check for misplay.
+        //
+        // 2-player, hand size 5.
+        // Alice(0-4): R1,Y1,B1,G1,P1
+        // Bob(5-9): R2,Y2,B2,G2,P2
+        // Draw: R3,Y3
+        var (game, states, violations) = GameBuilder.Create()
+            .WithPlayers("Alice", "Bob")
+            .WithDeck("R1,Y1,B1,G1,P1,R2,Y2,B2,G2,P2,R3,Y3")
+            .AtAdvancedLevel()
+            .Discard(4)           // T1 Alice: discards P1 (last action)
+            .BuildAndAnalyze();
+
+        violations.Should().NotContainViolation(ViolationType.MisplayCostViolation);
+    }
 }

@@ -107,4 +107,70 @@ public class SarcasticDiscardTests
 
         violations.Should().NotContainViolation(ViolationType.SarcasticDiscard);
     }
+
+    [Fact(Skip = "Known false positive: checker does not exclude trash duplicates")]
+    public void KnownDuplicate_BothTrash_NoSarcasticDiscardNeeded()
+    {
+        // R1 already played. Alice and Bob both hold clued R1 (trash).
+        var (game, states, violations) = GameBuilder.Create()
+            .WithPlayers("Alice", "Bob", "Charlie")
+            .WithDeck("R1,Y2,B2,G2,P2,R1,Y3,B3,G3,P3,R1,B4,G4,P4,R4,R5,Y5,B5")
+            .AtAdvancedLevel()
+            .ColorClue(1, "Red")
+            .ColorClue(0, "Red")
+            .Play(10)
+            .RankClue(1, 1)
+            .RankClue(0, 1)
+            .Discard(14)
+            .Discard(4)
+            .BuildAndAnalyze();
+        violations.Should().NotContainViolation(ViolationType.SarcasticDiscard);
+    }
+
+    [Fact(Skip = "Known false positive: checker does not exclude playable duplicates")]
+    public void KnownDuplicate_ButPlayable_ShouldPlayNotSarcasticDiscard()
+    {
+        // Alice fully knows R1, Bob has clued R1. R1 is playable. Should play it.
+        var (game, states, violations) = GameBuilder.Create()
+            .WithPlayers("Alice", "Bob", "Charlie")
+            .WithDeck("R1,Y2,B2,G2,P2,R1,Y3,B3,G3,P3,Y4,B4,G4,P4,R4,R5,Y5,B5")
+            .AtAdvancedLevel()
+            .ColorClue(1, "Red")
+            .ColorClue(0, "Red")
+            .RankClue(0, 1)
+            .Discard(4)
+            .BuildAndAnalyze();
+        violations.Should().NotContainViolation(ViolationType.SarcasticDiscard);
+    }
+
+    [Fact]
+    public void OnlyRankKnown_NoSarcasticDiscard()
+    {
+        // Alice has rank 2 clued but not color. Cannot identify duplicate.
+        var (game, states, violations) = GameBuilder.Create()
+            .WithPlayers("Alice", "Bob")
+            .WithDeck("R2,Y2,B1,G1,P1,R2,Y1,B2,G2,P2,R3,Y3")
+            .AtAdvancedLevel()
+            .ColorClue(1, "Red")
+            .RankClue(0, 2)
+            .Discard(4)
+            .BuildAndAnalyze();
+        violations.Should().NotContainViolation(ViolationType.SarcasticDiscard);
+    }
+
+    [Fact]
+    public void DuplicateInOtherHand_NotClued_NoSarcasticDiscard()
+    {
+        // Alice fully knows R2. Bob has R2 but NOT clued. No sarcastic discard.
+        var (game, states, violations) = GameBuilder.Create()
+            .WithPlayers("Alice", "Bob", "Charlie")
+            .WithDeck("R2,Y2,B1,G1,P1,R2,Y1,B2,G2,P2,Y3,B3,G3,P3,R3,R4,Y4,B4")
+            .AtAdvancedLevel()
+            .RankClue(2, 3)
+            .ColorClue(0, "Red")
+            .RankClue(0, 2)
+            .Discard(4)
+            .BuildAndAnalyze();
+        violations.Should().NotContainViolation(ViolationType.SarcasticDiscard);
+    }
 }
