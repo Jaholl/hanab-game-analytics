@@ -4,7 +4,7 @@ const SUIT_NAMES = ['Red', 'Yellow', 'Green', 'Blue', 'Purple']
 const SUIT_COLORS = ['#ff4444', '#ffdd44', '#44dd44', '#4488ff', '#aa44ff']
 const SUIT_ABBREVIATIONS = ['R', 'Y', 'G', 'B', 'P']
 
-function GameStateVisualization({ state, highlightedDeckIndex, players, currentPlayerOverride, previousAction }) {
+function GameStateVisualization({ state, highlightedDeckIndex, players, currentPlayerOverride, previousAction, currentTurn, violationTurn, minTurn, onPrevTurn, onNextTurn }) {
   if (!state) {
     return (
       <div className="game-state-unavailable">
@@ -62,6 +62,29 @@ function GameStateVisualization({ state, highlightedDeckIndex, players, currentP
       exit={{ opacity: 0, height: 0 }}
       transition={{ duration: 0.3 }}
     >
+      {/* Turn Navigation */}
+      {violationTurn && minTurn < violationTurn && (
+        <div className="turn-nav-bar" onClick={e => e.stopPropagation()}>
+          <button
+            className="turn-nav-btn"
+            disabled={currentTurn <= minTurn}
+            onClick={onPrevTurn}
+          >
+            &lt; Prev
+          </button>
+          <span className={`turn-nav-indicator ${currentTurn < violationTurn ? 'viewing-history' : ''}`}>
+            Turn {currentTurn} of {violationTurn}
+          </span>
+          <button
+            className="turn-nav-btn"
+            disabled={currentTurn >= violationTurn}
+            onClick={onNextTurn}
+          >
+            Next &gt;
+          </button>
+        </div>
+      )}
+
       {/* Previous Action */}
       {previousAction && (
         <div className="previous-action-bar">

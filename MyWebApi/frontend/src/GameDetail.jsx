@@ -50,11 +50,12 @@ const formatViolationType = (type) => {
 
 function GameDetail({ gameId, analysis, loading, error, onBack }) {
   const [expandedViolation, setExpandedViolation] = useState(null)
+  const [viewingTurn, setViewingTurn] = useState(null)
 
-  // Get state BEFORE the violation occurred
-  // violation.turn is 1-indexed (turn 1 = first action)
+  // Get state BEFORE an action at the given turn
+  // turn is 1-indexed (turn 1 = first action)
   // states array is 0-indexed: states[0] = initial deal, states[n] = after action n
-  // To show state BEFORE the misplay: states[violation.turn - 1]
+  // To show state BEFORE the action: states[turn - 1]
   const getStateForTurn = (turn) => {
     const states = analysis?.states
     if (!states || turn < 1 || turn > states.length) return null
@@ -62,8 +63,14 @@ function GameDetail({ gameId, analysis, loading, error, onBack }) {
   }
 
   const handleViolationClick = (index, violation) => {
-    if (violation.type !== 'Misplay') return
-    setExpandedViolation(expandedViolation === index ? null : index)
+    if (violation.severity !== 'critical') return
+    if (expandedViolation === index) {
+      setExpandedViolation(null)
+      setViewingTurn(null)
+    } else {
+      setExpandedViolation(index)
+      setViewingTurn(violation.turn)
+    }
   }
   if (loading) {
     return (
@@ -211,18 +218,20 @@ function GameDetail({ gameId, analysis, loading, error, onBack }) {
 
           <div className="violations-list">
             {violations.map((violation, i) => {
-              const isMisplay = violation.type === 'Misplay'
+              const isCritical = violation.severity === 'critical'
               const isExpanded = expandedViolation === i
-              const state = isExpanded ? getStateForTurn(violation.turn) : null
+              const activeTurn = isExpanded ? viewingTurn : null
+              const state = activeTurn ? getStateForTurn(activeTurn) : null
+              const minTurn = Math.max(1, violation.turn - 5)
 
-              // Get previous action (action index = turn - 2 since actions are 0-indexed)
-              const prevActionIndex = violation.turn - 2
+              // Get previous action for the currently viewed turn
+              const prevActionIndex = activeTurn ? activeTurn - 2 : violation.turn - 2
               const prevAction = prevActionIndex >= 0 ? game.actions[prevActionIndex] : null
 
               return (
                 <motion.div
                   key={i}
-                  className={`violation-card ${getSeverityClass(violation.severity)} ${isMisplay ? 'misplay' : ''} ${isExpanded ? 'expanded' : ''}`}
+                  className={`violation-card ${getSeverityClass(violation.severity)} ${isCritical ? 'expandable' : ''} ${isExpanded ? 'expanded' : ''}`}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.3 + i * 0.05 }}
@@ -235,7 +244,7 @@ function GameDetail({ gameId, analysis, loading, error, onBack }) {
                     <span className="violation-turn">Turn {violation.turn}</span>
                     <span className="violation-player">{violation.player}</span>
                     <span className="violation-type">{formatViolationType(violation.type)}</span>
-                    {isMisplay && (
+                    {isCritical && (
                       <span className="violation-expand-indicator">
                         {isExpanded ? '−' : '+'}
                       </span>
@@ -246,10 +255,15 @@ function GameDetail({ gameId, analysis, loading, error, onBack }) {
                     {isExpanded && (
                       <GameStateVisualization
                         state={state}
-                        highlightedDeckIndex={violation.card?.deckIndex}
+                        highlightedDeckIndex={activeTurn === violation.turn ? violation.card?.deckIndex : null}
                         players={game.players}
-                        currentPlayerOverride={(violation.turn - 1) % game.players.length}
+                        currentPlayerOverride={(activeTurn - 1) % game.players.length}
                         previousAction={prevAction}
+                        currentTurn={activeTurn}
+                        violationTurn={violation.turn}
+                        minTurn={minTurn}
+                        onPrevTurn={() => setViewingTurn(t => Math.max(minTurn, t - 1))}
+                        onNextTurn={() => setViewingTurn(t => Math.min(violation.turn, t + 1))}
                       />
                     )}
                   </AnimatePresence>
