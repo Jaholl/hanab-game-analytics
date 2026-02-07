@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -90,6 +90,9 @@ function App() {
   const [compareProfile, setCompareProfile] = useState(null)
   const [compareLoading, setCompareLoading] = useState(false)
 
+  // Session cache for playstyle profiles (avoids re-fetching on partner toggle)
+  const playstyleCache = useRef({})
+
   const fetchCriticalTrends = async (user) => {
     setCriticalLoading(true)
     setCriticalError(null)
@@ -106,12 +109,18 @@ function App() {
   }
 
   const fetchPlaystyleProfile = async (user) => {
+    const cacheKey = user.toLowerCase()
+    if (playstyleCache.current[cacheKey]) {
+      setPlaystyleProfile(playstyleCache.current[cacheKey])
+      return
+    }
     setPlaystyleLoading(true)
     setPlaystyleError(null)
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://hanab-analytics-api.azurewebsites.net'}/hanabi/history/${user}/playstyle?size=50&level=2`)
       if (!response.ok) throw new Error('Failed to fetch playstyle profile')
       const data = await response.json()
+      playstyleCache.current[cacheKey] = data
       setPlaystyleProfile(data)
     } catch (err) {
       setPlaystyleError(err.message)
@@ -127,12 +136,18 @@ function App() {
       return
     }
     setComparePartner(partnerName)
+    const cacheKey = partnerName.toLowerCase()
+    if (playstyleCache.current[cacheKey]) {
+      setCompareProfile(playstyleCache.current[cacheKey])
+      return
+    }
     setCompareLoading(true)
     setCompareProfile(null)
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://hanab-analytics-api.azurewebsites.net'}/hanabi/history/${partnerName}/playstyle?size=50&level=2`)
       if (!response.ok) throw new Error('Failed to fetch partner playstyle')
       const data = await response.json()
+      playstyleCache.current[cacheKey] = data
       setCompareProfile(data)
     } catch {
       setComparePartner(null)
@@ -147,6 +162,7 @@ function App() {
     setError(null)
     setComparePartner(null)
     setCompareProfile(null)
+    playstyleCache.current = {}
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://hanab-analytics-api.azurewebsites.net'}/hanabi/history/${username}?size=100`)
       if (!response.ok) throw new Error('Failed to fetch game history')

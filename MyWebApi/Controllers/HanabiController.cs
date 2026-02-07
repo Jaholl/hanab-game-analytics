@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using MyWebApi.Models;
 using MyWebApi.Services;
 
@@ -10,6 +11,7 @@ public class HanabiController : ControllerBase
 {
     private readonly IHanabiService _hanabiService;
     private readonly ILogger<HanabiController> _logger;
+    private readonly IMemoryCache _cache;
     private readonly GameStateSimulator _simulator;
 
     // Supported variants (standard 5-suit)
@@ -18,10 +20,11 @@ public class HanabiController : ControllerBase
         "No Variant"
     };
 
-    public HanabiController(IHanabiService hanabiService, ILogger<HanabiController> logger)
+    public HanabiController(IHanabiService hanabiService, ILogger<HanabiController> logger, IMemoryCache cache)
     {
         _hanabiService = hanabiService;
         _logger = logger;
+        _cache = cache;
         _simulator = new GameStateSimulator();
     }
 
@@ -256,8 +259,20 @@ public class HanabiController : ControllerBase
 
         try
         {
+            // Fetch history first (cheap) to build a cache key that includes the latest game ID
             var history = await _hanabiService.GetHistoryAsync(username, 0, size);
             var games = history.Rows;
+
+            var latestGameId = games.Count > 0 ? games[0].Id : 0;
+            var cacheKey = $"playstyle:{username.ToLowerInvariant()}:{size}:{level}:{latestGameId}";
+
+            if (_cache.TryGetValue(cacheKey, out PlaystyleResponse? cachedResult) && cachedResult != null)
+            {
+                _logger.LogInformation("Serving cached playstyle for {Username} (key={CacheKey})", username, cacheKey);
+                return Ok(cachedResult);
+            }
+
+            _logger.LogInformation("Computing playstyle for {Username} (key={CacheKey})", username, cacheKey);
 
             var semaphore = new SemaphoreSlim(5);
             var lockObj = new object();
@@ -373,7 +388,7 @@ public class HanabiController : ControllerBase
                 dimensions.DiscardFrequency = Math.Round(ToPercentile(rates.DiscardRate, DiscardRatePercentiles), 1);
             }
 
-            return Ok(new PlaystyleResponse
+            var result = new PlaystyleResponse
             {
                 Player = username,
                 GamesAnalyzed = gamesAnalyzed,
@@ -391,7 +406,11 @@ public class HanabiController : ControllerBase
                 MissedFinesses = missedFinesses,
                 Rates = rates,
                 Dimensions = dimensions
-            });
+            };
+
+            _cache.Set(cacheKey, result, TimeSpan.FromHours(1));
+
+            return Ok(result);
         }
         catch (HttpRequestException ex)
         {
