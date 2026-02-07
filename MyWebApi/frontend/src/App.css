@@ -1560,6 +1560,28 @@
   color: #333;
 }
 
+/* Card Animation Overlay */
+.card-animation-overlay {
+  transition: none !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 12px rgba(255, 255, 255, 0.15);
+}
+
+/* Hide source card during animation */
+.hand-card.animating-out {
+  opacity: 0 !important;
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-animation-overlay {
+    display: none !important;
+  }
+
+  .hand-card.animating-out {
+    opacity: 1 !important;
+  }
+}
+
 /* Responsive for Game State Visualization */
 @media (max-width: 480px) {
   .state-status-bar {

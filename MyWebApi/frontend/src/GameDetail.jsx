@@ -257,6 +257,8 @@ function GameDetail({ gameId, analysis, loading, error, onBack }) {
                     {isExpanded && (
                       <GameStateVisualization
                         state={state}
+                        nextState={activeTurn ? getStateForTurn(activeTurn + 1) : null}
+                        currentAction={activeTurn && activeTurn <= (game.actions?.length || 0) ? game.actions[activeTurn - 1] : null}
                         highlightedDeckIndex={activeTurn === violation.turn ? violation.card?.deckIndex : null}
                         players={game.players}
                         currentPlayerOverride={(activeTurn - 1) % game.players.length}
