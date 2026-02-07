@@ -264,6 +264,7 @@ function GameDetail({ gameId, analysis, loading, error, onBack }) {
                         currentTurn={activeTurn}
                         violationTurn={violation.turn}
                         minTurn={minTurn}
+                        maxTurn={maxTurn}
                         onPrevTurn={() => setViewingTurn(t => Math.max(minTurn, t - 1))}
                         onNextTurn={() => setViewingTurn(t => Math.min(maxTurn, t + 1))}
                       />

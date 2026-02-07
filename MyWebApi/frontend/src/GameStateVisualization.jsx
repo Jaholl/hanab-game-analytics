@@ -4,7 +4,7 @@ const SUIT_NAMES = ['Red', 'Yellow', 'Green', 'Blue', 'Purple']
 const SUIT_COLORS = ['#ff4444', '#ffdd44', '#44dd44', '#4488ff', '#aa44ff']
 const SUIT_ABBREVIATIONS = ['R', 'Y', 'G', 'B', 'P']
 
-function GameStateVisualization({ state, highlightedDeckIndex, players, currentPlayerOverride, previousAction, currentTurn, violationTurn, minTurn, onPrevTurn, onNextTurn }) {
+function GameStateVisualization({ state, highlightedDeckIndex, players, currentPlayerOverride, previousAction, currentTurn, violationTurn, minTurn, maxTurn, onPrevTurn, onNextTurn }) {
   if (!state) {
     return (
       <div className="game-state-unavailable">
@@ -63,7 +63,7 @@ function GameStateVisualization({ state, highlightedDeckIndex, players, currentP
       transition={{ duration: 0.3 }}
     >
       {/* Turn Navigation */}
-      {violationTurn && minTurn < violationTurn && (
+      {violationTurn && maxTurn > minTurn && (
         <div className="turn-nav-bar" onClick={e => e.stopPropagation()}>
           <button
             className="turn-nav-btn"
@@ -72,12 +72,12 @@ function GameStateVisualization({ state, highlightedDeckIndex, players, currentP
           >
             &lt; Prev
           </button>
-          <span className={`turn-nav-indicator ${currentTurn < violationTurn ? 'viewing-history' : ''}`}>
-            Turn {currentTurn} of {violationTurn}
+          <span className={`turn-nav-indicator ${currentTurn !== violationTurn ? 'viewing-history' : ''}`}>
+            Turn {currentTurn}{currentTurn !== violationTurn ? ` (violation: ${violationTurn})` : ''}
           </span>
           <button
             className="turn-nav-btn"
-            disabled={currentTurn >= violationTurn}
+            disabled={currentTurn >= maxTurn}
             onClick={onNextTurn}
           >
             Next &gt;
@@ -117,26 +117,51 @@ function GameStateVisualization({ state, highlightedDeckIndex, players, currentP
         </div>
       </div>
 
-      {/* Play Stacks */}
+      {/* Play Stacks & Trash */}
       <div className="state-section">
-        <div className="state-section-title">Play Stacks</div>
-        <div className="play-stacks">
-          {state.playStacks.map((value, suitIndex) => (
-            <div
-              key={suitIndex}
-              className="play-stack"
-              style={{ '--suit-color': SUIT_COLORS[suitIndex] }}
-            >
-              <div className="stack-suit">{SUIT_ABBREVIATIONS[suitIndex]}</div>
-              <div className="stack-value">{value}</div>
+        <div className="stacks-and-trash">
+          <div className="stacks-column">
+            <div className="state-section-title">Play Stacks</div>
+            <div className="play-stacks">
+              {state.playStacks.map((value, suitIndex) => (
+                <div
+                  key={suitIndex}
+                  className="play-stack"
+                  style={{ '--suit-color': SUIT_COLORS[suitIndex] }}
+                >
+                  <div className="stack-suit">{SUIT_ABBREVIATIONS[suitIndex]}</div>
+                  <div className="stack-value">{value}</div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+          {state.discardPile && state.discardPile.length > 0 && (
+            <div className="trash-column">
+              <div className="state-section-title">Trash ({state.discardPile.length})</div>
+              <div className="trash-pile">
+                {state.discardPile.map((card, i) => (
+                  <div
+                    key={i}
+                    className="trash-card"
+                    style={{ '--suit-color': SUIT_COLORS[card.suitIndex] }}
+                  >
+                    <span className="card-rank">{card.rank}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Player Hands */}
       <div className="state-section">
         <div className="state-section-title">Player Hands (Omniscient View)</div>
+        <div className="hand-order-legend">
+          <span className="legend-newest">newest</span>
+          <span className="legend-arrow">→</span>
+          <span className="legend-oldest">chop</span>
+        </div>
         <div className="player-hands">
           {state.hands.map((hand, playerIndex) => (
             <div key={playerIndex} className="player-hand">
@@ -147,7 +172,7 @@ function GameStateVisualization({ state, highlightedDeckIndex, players, currentP
                 )}
               </div>
               <div className="hand-cards">
-                {hand.map((card) => {
+                {[...hand].reverse().map((card) => {
                   const isHighlighted = card.deckIndex === highlightedDeckIndex
                   const wasClued = wasCardClued(card, playerIndex)
                   return (
@@ -178,6 +203,7 @@ function GameStateVisualization({ state, highlightedDeckIndex, players, currentP
           ))}
         </div>
       </div>
+
     </motion.div>
   )
 }
