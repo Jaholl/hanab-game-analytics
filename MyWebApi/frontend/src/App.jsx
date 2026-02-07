@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   LineChart, Line,
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
 import GameDetail from './GameDetail'
@@ -85,6 +85,11 @@ function App() {
   const [playstyleLoading, setPlaystyleLoading] = useState(false)
   const [playstyleError, setPlaystyleError] = useState(null)
 
+  // Partner comparison state
+  const [comparePartner, setComparePartner] = useState(null)
+  const [compareProfile, setCompareProfile] = useState(null)
+  const [compareLoading, setCompareLoading] = useState(false)
+
   const fetchCriticalTrends = async (user) => {
     setCriticalLoading(true)
     setCriticalError(null)
@@ -115,9 +120,33 @@ function App() {
     }
   }
 
+  const fetchPartnerPlaystyle = async (partnerName) => {
+    if (comparePartner === partnerName) {
+      setComparePartner(null)
+      setCompareProfile(null)
+      return
+    }
+    setComparePartner(partnerName)
+    setCompareLoading(true)
+    setCompareProfile(null)
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://hanab-analytics-api.azurewebsites.net'}/hanabi/history/${partnerName}/playstyle?size=50&level=2`)
+      if (!response.ok) throw new Error('Failed to fetch partner playstyle')
+      const data = await response.json()
+      setCompareProfile(data)
+    } catch {
+      setComparePartner(null)
+      setCompareProfile(null)
+    } finally {
+      setCompareLoading(false)
+    }
+  }
+
   const fetchHistory = async () => {
     setLoading(true)
     setError(null)
+    setComparePartner(null)
+    setCompareProfile(null)
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://hanab-analytics-api.azurewebsites.net'}/hanabi/history/${username}?size=100`)
       if (!response.ok) throw new Error('Failed to fetch game history')
@@ -326,17 +355,18 @@ function App() {
   const playstyleData = useMemo(() => {
     if (!playstyleProfile?.dimensions) return []
     const d = playstyleProfile.dimensions
+    const c = compareProfile?.dimensions
     return [
-      { axis: 'Low Errors', value: d.accuracy, fullMark: 100 },
-      { axis: 'Clean Clues', value: d.clueQuality, fullMark: 100 },
-      { axis: 'Saves Cards', value: d.teamwork, fullMark: 100 },
-      { axis: 'Reads Finesses', value: d.technique, fullMark: 100 },
-      { axis: 'Plays Often', value: d.boldness, fullMark: 100 },
-      { axis: 'Clues Often', value: d.efficiency, fullMark: 100 },
-      { axis: 'Discards Often', value: d.discardFrequency, fullMark: 100 },
-      { axis: 'Misreads Saves', value: d.misreadSaves, fullMark: 100 },
+      { axis: 'Low Errors', value: d.accuracy, fullMark: 100, ...(c && { compareValue: c.accuracy }) },
+      { axis: 'Clean Clues', value: d.clueQuality, fullMark: 100, ...(c && { compareValue: c.clueQuality }) },
+      { axis: 'Saves Cards', value: d.teamwork, fullMark: 100, ...(c && { compareValue: c.teamwork }) },
+      { axis: 'Reads Finesses', value: d.technique, fullMark: 100, ...(c && { compareValue: c.technique }) },
+      { axis: 'Plays Often', value: d.boldness, fullMark: 100, ...(c && { compareValue: c.boldness }) },
+      { axis: 'Clues Often', value: d.efficiency, fullMark: 100, ...(c && { compareValue: c.efficiency }) },
+      { axis: 'Discards Often', value: d.discardFrequency, fullMark: 100, ...(c && { compareValue: c.discardFrequency }) },
+      { axis: 'Misreads Saves', value: d.misreadSaves, fullMark: 100, ...(c && { compareValue: c.misreadSaves }) },
     ]
-  }, [playstyleProfile])
+  }, [playstyleProfile, compareProfile])
 
   // Show game detail view if a game is selected
   if (selectedGameId !== null) {
@@ -473,6 +503,125 @@ function App() {
             </button>
           </motion.div>
 
+          {/* Playstyle Profile */}
+          {(activeView === 'all' || activeView === 'charts') && (
+            <motion.section
+              className="playstyle-section"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.32 }}
+            >
+              <div className="playstyle-chart">
+                <div className="section-header">
+                  <h2 className="section-title">
+                    <span>🔷</span> Playstyle Profile
+                  </h2>
+                  {playstyleProfile && (
+                    <span className="chart-subtitle">{playstyleProfile.gamesAnalyzed} games analyzed</span>
+                  )}
+                </div>
+                <div className="playstyle-chart-wrapper">
+                  {playstyleLoading ? (
+                    <div className="chart-loading">
+                      <div className="loading-spinner" style={{ width: 40, height: 40 }}></div>
+                      <p className="loading-text">Analyzing playstyle...</p>
+                    </div>
+                  ) : playstyleError ? (
+                    <div className="chart-error">
+                      <p>Failed to load playstyle profile</p>
+                    </div>
+                  ) : playstyleData.length === 0 ? (
+                    <div className="chart-empty">
+                      <p>No data available</p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart data={playstyleData} cx="50%" cy="50%" outerRadius="70%">
+                        <PolarGrid stroke="#30363d" />
+                        <PolarAngleAxis dataKey="axis" tick={{ fill: '#c9d1d9', fontSize: 12 }} />
+                        <Radar
+                          name={username}
+                          dataKey="value"
+                          stroke={CHART_COLORS.cyan}
+                          fill={CHART_COLORS.cyan}
+                          fillOpacity={0.25}
+                          strokeWidth={2}
+                        />
+                        {compareProfile && (
+                          <Radar
+                            name={comparePartner}
+                            dataKey="compareValue"
+                            stroke={CHART_COLORS.ember}
+                            fill={CHART_COLORS.ember}
+                            fillOpacity={0.15}
+                            strokeWidth={2}
+                          />
+                        )}
+                        <Tooltip content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const d = payload[0].payload
+                            return (
+                              <div className="custom-tooltip">
+                                <p className="tooltip-label">{d.axis}</p>
+                                <p className="tooltip-value" style={{ color: CHART_COLORS.cyan }}>
+                                  {username}: {d.value.toFixed(1)}
+                                </p>
+                                {d.compareValue !== undefined && (
+                                  <p className="tooltip-value" style={{ color: CHART_COLORS.ember }}>
+                                    {comparePartner}: {d.compareValue.toFixed(1)}
+                                  </p>
+                                )}
+                              </div>
+                            )
+                          }
+                          return null
+                        }} />
+                        {compareProfile && (
+                          <Legend
+                            formatter={(value) => <span style={{ color: '#c9d1d9' }}>{value}</span>}
+                          />
+                        )}
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </div>
+              <div className="playstyle-sidebar">
+                <h3 className="playstyle-sidebar-title">Compare with Partner</h3>
+                {frequentPartners.length === 0 ? (
+                  <p className="playstyle-sidebar-empty">No partners found</p>
+                ) : (
+                  <>
+                    <div className="partner-chips">
+                      {frequentPartners.map((partner) => (
+                        <button
+                          key={partner.name}
+                          className={`partner-chip ${comparePartner === partner.name ? 'active' : ''}`}
+                          onClick={() => fetchPartnerPlaystyle(partner.name)}
+                          disabled={compareLoading}
+                        >
+                          {partner.name}
+                          <span className="partner-chip-games">{partner.games}g</span>
+                        </button>
+                      ))}
+                    </div>
+                    {comparePartner && (
+                      <button
+                        className="compare-clear-btn"
+                        onClick={() => { setComparePartner(null); setCompareProfile(null) }}
+                      >
+                        Clear comparison
+                      </button>
+                    )}
+                    {compareLoading && (
+                      <p className="compare-loading-text">Loading profile...</p>
+                    )}
+                  </>
+                )}
+              </div>
+            </motion.section>
+          )}
+
           {/* Frequent Partners */}
           {(activeView === 'all' || activeView === 'charts') && frequentPartners.length > 0 && (
             <motion.section
@@ -593,63 +742,6 @@ function App() {
                             name="10-Game Avg"
                           />
                         </LineChart>
-                      </ResponsiveContainer>
-                    )}
-                  </div>
-                </div>
-
-                {/* Playstyle Radar */}
-                <div className="chart-container">
-                  <div className="chart-header">
-                    <span className="chart-icon">🔷</span>
-                    <h3 className="chart-title">Playstyle Profile</h3>
-                    {playstyleProfile && (
-                      <span className="chart-subtitle">{playstyleProfile.gamesAnalyzed} games analyzed</span>
-                    )}
-                  </div>
-                  <div className="chart-wrapper">
-                    {playstyleLoading ? (
-                      <div className="chart-loading">
-                        <div className="loading-spinner" style={{ width: 40, height: 40 }}></div>
-                        <p className="loading-text">Analyzing playstyle...</p>
-                      </div>
-                    ) : playstyleError ? (
-                      <div className="chart-error">
-                        <p>Failed to load playstyle profile</p>
-                      </div>
-                    ) : playstyleData.length === 0 ? (
-                      <div className="chart-empty">
-                        <p>No data available</p>
-                      </div>
-                    ) : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart data={playstyleData} cx="50%" cy="50%" outerRadius="70%">
-                          <PolarGrid stroke="#30363d" />
-                          <PolarAngleAxis dataKey="axis" tick={{ fill: '#c9d1d9', fontSize: 12 }} />
-                          <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: '#8b949e', fontSize: 10 }} tickCount={6} />
-                          <Radar
-                            name="Playstyle"
-                            dataKey="value"
-                            stroke={CHART_COLORS.cyan}
-                            fill={CHART_COLORS.cyan}
-                            fillOpacity={0.25}
-                            strokeWidth={2}
-                          />
-                          <Tooltip content={({ active, payload }) => {
-                            if (active && payload && payload.length) {
-                              const d = payload[0].payload
-                              return (
-                                <div className="custom-tooltip">
-                                  <p className="tooltip-label">{d.axis}</p>
-                                  <p className="tooltip-value" style={{ color: CHART_COLORS.cyan }}>
-                                    {d.value.toFixed(1)} / 100
-                                  </p>
-                                </div>
-                              )
-                            }
-                            return null
-                          }} />
-                        </RadarChart>
                       </ResponsiveContainer>
                     )}
                   </div>
