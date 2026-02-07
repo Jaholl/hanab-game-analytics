@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   LineChart, Line,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
 import GameDetail from './GameDetail'
@@ -79,6 +80,11 @@ function App() {
   const [criticalLoading, setCriticalLoading] = useState(false)
   const [criticalError, setCriticalError] = useState(null)
 
+  // Playstyle profile state
+  const [playstyleProfile, setPlaystyleProfile] = useState(null)
+  const [playstyleLoading, setPlaystyleLoading] = useState(false)
+  const [playstyleError, setPlaystyleError] = useState(null)
+
   const fetchCriticalTrends = async (user) => {
     setCriticalLoading(true)
     setCriticalError(null)
@@ -94,6 +100,21 @@ function App() {
     }
   }
 
+  const fetchPlaystyleProfile = async (user) => {
+    setPlaystyleLoading(true)
+    setPlaystyleError(null)
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://hanab-analytics-api.azurewebsites.net'}/hanabi/history/${user}/playstyle?size=50&level=2`)
+      if (!response.ok) throw new Error('Failed to fetch playstyle profile')
+      const data = await response.json()
+      setPlaystyleProfile(data)
+    } catch (err) {
+      setPlaystyleError(err.message)
+    } finally {
+      setPlaystyleLoading(false)
+    }
+  }
+
   const fetchHistory = async () => {
     setLoading(true)
     setError(null)
@@ -104,6 +125,7 @@ function App() {
       setGames(data.rows || [])
       setTotalRows(data.total_rows || 0)
       fetchCriticalTrends(username)
+      fetchPlaystyleProfile(username)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -299,6 +321,22 @@ function App() {
       }
     })
   }, [criticalTrends])
+
+  // Playstyle radar data
+  const playstyleData = useMemo(() => {
+    if (!playstyleProfile?.dimensions) return []
+    const d = playstyleProfile.dimensions
+    return [
+      { axis: 'Low Errors', value: d.accuracy, fullMark: 100 },
+      { axis: 'Clean Clues', value: d.clueQuality, fullMark: 100 },
+      { axis: 'Saves Cards', value: d.teamwork, fullMark: 100 },
+      { axis: 'Reads Finesses', value: d.technique, fullMark: 100 },
+      { axis: 'Plays Often', value: d.boldness, fullMark: 100 },
+      { axis: 'Clues Often', value: d.efficiency, fullMark: 100 },
+      { axis: 'Discards Often', value: d.discardFrequency, fullMark: 100 },
+      { axis: 'Misreads Saves', value: d.misreadSaves, fullMark: 100 },
+    ]
+  }, [playstyleProfile])
 
   // Show game detail view if a game is selected
   if (selectedGameId !== null) {
@@ -555,6 +593,63 @@ function App() {
                             name="10-Game Avg"
                           />
                         </LineChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </div>
+
+                {/* Playstyle Radar */}
+                <div className="chart-container">
+                  <div className="chart-header">
+                    <span className="chart-icon">🔷</span>
+                    <h3 className="chart-title">Playstyle Profile</h3>
+                    {playstyleProfile && (
+                      <span className="chart-subtitle">{playstyleProfile.gamesAnalyzed} games analyzed</span>
+                    )}
+                  </div>
+                  <div className="chart-wrapper">
+                    {playstyleLoading ? (
+                      <div className="chart-loading">
+                        <div className="loading-spinner" style={{ width: 40, height: 40 }}></div>
+                        <p className="loading-text">Analyzing playstyle...</p>
+                      </div>
+                    ) : playstyleError ? (
+                      <div className="chart-error">
+                        <p>Failed to load playstyle profile</p>
+                      </div>
+                    ) : playstyleData.length === 0 ? (
+                      <div className="chart-empty">
+                        <p>No data available</p>
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={playstyleData} cx="50%" cy="50%" outerRadius="70%">
+                          <PolarGrid stroke="#30363d" />
+                          <PolarAngleAxis dataKey="axis" tick={{ fill: '#c9d1d9', fontSize: 12 }} />
+                          <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: '#8b949e', fontSize: 10 }} tickCount={6} />
+                          <Radar
+                            name="Playstyle"
+                            dataKey="value"
+                            stroke={CHART_COLORS.cyan}
+                            fill={CHART_COLORS.cyan}
+                            fillOpacity={0.25}
+                            strokeWidth={2}
+                          />
+                          <Tooltip content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const d = payload[0].payload
+                              return (
+                                <div className="custom-tooltip">
+                                  <p className="tooltip-label">{d.axis}</p>
+                                  <p className="tooltip-value" style={{ color: CHART_COLORS.cyan }}>
+                                    {d.value.toFixed(1)} / 100
+                                  </p>
+                                </div>
+                              )
+                            }
+                            return null
+                          }} />
+                        </RadarChart>
                       </ResponsiveContainer>
                     )}
                   </div>

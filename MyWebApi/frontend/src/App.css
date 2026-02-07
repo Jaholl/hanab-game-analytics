@@ -297,6 +297,13 @@
   letter-spacing: 0.05em;
 }
 
+.chart-subtitle {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
 .chart-wrapper {
   height: 300px;
 }
