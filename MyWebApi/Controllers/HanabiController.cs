@@ -105,4 +105,95 @@ public class HanabiController : ControllerBase
             return StatusCode(502, "Failed to fetch data from hanab.live");
         }
     }
+
+    [HttpGet("history/{username}/critical-trends")]
+    public async Task<ActionResult<BatchCriticalMistakesResponse>> GetCriticalTrends(
+        string username,
+        [FromQuery] int size = 50,
+        [FromQuery] int level = 2)
+    {
+        _logger.LogInformation("Getting critical trends for {Username}, size={Size}, level={Level}", username, size, level);
+
+        if (size < 1 || size > 200)
+        {
+            return BadRequest("Size must be between 1 and 200");
+        }
+
+        if (level < 0 || level > 3)
+        {
+            return BadRequest("Level must be 0, 1, 2, or 3");
+        }
+
+        var conventionLevel = (ConventionLevel)level;
+        var options = AnalyzerOptions.ForLevel(conventionLevel);
+
+        try
+        {
+            var history = await _hanabiService.GetHistoryAsync(username, 0, size);
+            var games = history.Rows;
+
+            var semaphore = new SemaphoreSlim(5);
+            var results = new List<GameCriticalSummary>();
+            var lockObj = new object();
+
+            var tasks = games.Select(async game =>
+            {
+                await semaphore.WaitAsync();
+                try
+                {
+                    var export = await _hanabiService.GetGameExportAsync(game.Id);
+                    if (export == null) return;
+
+                    if (!SupportedVariants.Contains(export.Options.Variant)) return;
+
+                    var simulator = new GameStateSimulator();
+                    var states = simulator.SimulateGame(export);
+                    var analyzer = new RuleAnalyzer(options);
+                    var violations = analyzer.AnalyzeGame(export, states);
+
+                    var criticalCount = violations.Count(v =>
+                        v.Severity == Severity.Critical &&
+                        string.Equals(v.Player, username, StringComparison.OrdinalIgnoreCase));
+
+                    var summary = new GameCriticalSummary
+                    {
+                        GameId = game.Id,
+                        DateTime = game.DateTime,
+                        CriticalCount = criticalCount,
+                        Score = game.Score,
+                        Players = export.Players
+                    };
+
+                    lock (lockObj)
+                    {
+                        results.Add(summary);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to analyze game {GameId} for critical trends", game.Id);
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            });
+
+            await Task.WhenAll(tasks);
+
+            // Sort chronologically (oldest first) by DateTime
+            results.Sort((a, b) => string.Compare(a.DateTime, b.DateTime, StringComparison.Ordinal));
+
+            return Ok(new BatchCriticalMistakesResponse
+            {
+                Player = username,
+                Games = results
+            });
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Failed to fetch history for critical trends");
+            return StatusCode(502, "Failed to fetch data from hanab.live");
+        }
+    }
 }

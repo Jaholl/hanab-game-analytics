@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
 import GameDetail from './GameDetail'
@@ -73,6 +74,26 @@ function App() {
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [analysisError, setAnalysisError] = useState(null)
 
+  // Critical trends state
+  const [criticalTrends, setCriticalTrends] = useState(null)
+  const [criticalLoading, setCriticalLoading] = useState(false)
+  const [criticalError, setCriticalError] = useState(null)
+
+  const fetchCriticalTrends = async (user) => {
+    setCriticalLoading(true)
+    setCriticalError(null)
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://hanab-analytics-api.azurewebsites.net'}/hanabi/history/${user}/critical-trends?size=50&level=2`)
+      if (!response.ok) throw new Error('Failed to fetch critical trends')
+      const data = await response.json()
+      setCriticalTrends(data)
+    } catch (err) {
+      setCriticalError(err.message)
+    } finally {
+      setCriticalLoading(false)
+    }
+  }
+
   const fetchHistory = async () => {
     setLoading(true)
     setError(null)
@@ -82,6 +103,7 @@ function App() {
       const data = await response.json()
       setGames(data.rows || [])
       setTotalRows(data.total_rows || 0)
+      fetchCriticalTrends(username)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -130,21 +152,24 @@ function App() {
     if (games.length === 0) return null
 
     const scores = games.map(g => g.score)
-    const avgScore = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)
+    const nonZeroScores = scores.filter(s => s > 0)
+    const avgScore = nonZeroScores.length > 0 ? (nonZeroScores.reduce((a, b) => a + b, 0) / nonZeroScores.length).toFixed(1) : '—'
     const maxScore = Math.max(...scores)
     const perfectGames = scores.filter(s => s === 25).length
     const winRate = ((perfectGames / scores.length) * 100).toFixed(1)
+    const strikeoutRate = ((scores.filter(s => s === 0).length / scores.length) * 100).toFixed(1)
 
-    return { avgScore, maxScore, perfectGames, winRate, totalGames: games.length }
+    return { avgScore, maxScore, perfectGames, winRate, strikeoutRate, totalGames: games.length }
   }, [games])
 
-  // Score distribution data for bar chart
+  // Score distribution data for bar chart (skip 0-score strikeouts)
   const scoreDistribution = useMemo(() => {
     if (games.length === 0) return []
 
     const distribution = {}
     games.forEach(g => {
       const score = g.score
+      if (score === 0) return
       distribution[score] = (distribution[score] || 0) + 1
     })
 
@@ -202,6 +227,78 @@ function App() {
       { name: 'Low (0-11)', value: tiers.low, color: CHART_COLORS.rose }
     ].filter(t => t.value > 0)
   }, [games])
+
+  // Frequent partners analysis
+  const frequentPartners = useMemo(() => {
+    if (games.length === 0) return []
+
+    const partnerMap = {}
+    const criticalByGameId = {}
+
+    // Index critical trends by gameId for cross-reference
+    if (criticalTrends?.games) {
+      criticalTrends.games.forEach(g => {
+        criticalByGameId[g.gameId] = g
+      })
+    }
+
+    games.forEach(game => {
+      const players = game.users.split(', ').map(p => p.trim()).filter(Boolean)
+      players.forEach(player => {
+        if (player.toLowerCase() === username.toLowerCase()) return
+        if (!partnerMap[player]) {
+          partnerMap[player] = { games: 0, scoredGames: 0, totalScore: 0, strikeouts: 0, perfectGames: 0, bestScore: 0, totalCritical: 0, criticalGames: 0 }
+        }
+        const p = partnerMap[player]
+        p.games++
+        if (game.score > 0) {
+          p.scoredGames++
+          p.totalScore += game.score
+        }
+        if (game.score === 0) p.strikeouts++
+        if (game.score === 25) p.perfectGames++
+        if (game.score > p.bestScore) p.bestScore = game.score
+
+        const ct = criticalByGameId[game.id]
+        if (ct) {
+          p.totalCritical += ct.criticalCount
+          p.criticalGames++
+        }
+      })
+    })
+
+    return Object.entries(partnerMap)
+      .map(([name, data]) => ({
+        name,
+        games: data.games,
+        avgScore: data.scoredGames > 0 ? (data.totalScore / data.scoredGames).toFixed(1) : '—',
+        strikeoutRate: ((data.strikeouts / data.games) * 100).toFixed(0),
+        winRate: ((data.perfectGames / data.games) * 100).toFixed(0),
+        bestScore: data.bestScore,
+        avgMistakes: data.criticalGames > 0 ? (data.totalCritical / data.criticalGames).toFixed(1) : '—'
+      }))
+      .sort((a, b) => b.games - a.games)
+      .slice(0, 6)
+  }, [games, criticalTrends, username])
+
+  // Critical trend data with rolling average
+  const criticalTrendData = useMemo(() => {
+    if (!criticalTrends?.games?.length) return []
+
+    return criticalTrends.games.map((game, i) => {
+      const windowStart = Math.max(0, i - 9)
+      const window = criticalTrends.games.slice(windowStart, i + 1)
+      const rollingAvg = window.reduce((sum, g) => sum + g.criticalCount, 0) / window.length
+
+      return {
+        game: i + 1,
+        criticals: game.criticalCount,
+        rollingAvg: parseFloat(rollingAvg.toFixed(2)),
+        score: game.score,
+        gameId: game.gameId
+      }
+    })
+  }, [criticalTrends])
 
   // Show game detail view if a game is selected
   if (selectedGameId !== null) {
@@ -305,6 +402,10 @@ function App() {
               <div className="stat-value">{stats?.perfectGames}</div>
               <div className="stat-label">Perfect Games</div>
             </div>
+            <div className="stat-card danger">
+              <div className="stat-value">{stats?.strikeoutRate}%</div>
+              <div className="stat-label">Strikeout Rate</div>
+            </div>
           </motion.div>
 
           {/* View Toggle */}
@@ -334,6 +435,62 @@ function App() {
             </button>
           </motion.div>
 
+          {/* Frequent Partners */}
+          {(activeView === 'all' || activeView === 'charts') && frequentPartners.length > 0 && (
+            <motion.section
+              className="partners-section"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.35 }}
+            >
+              <div className="section-header">
+                <h2 className="section-title">
+                  <span>👥</span> Frequent Partners
+                </h2>
+              </div>
+              <div className="partners-grid">
+                {frequentPartners.map((partner, index) => (
+                  <motion.div
+                    key={partner.name}
+                    className="partner-card"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: index * 0.05 }}
+                    whileHover={{ scale: 1.03 }}
+                  >
+                    <div className="partner-name">{partner.name}</div>
+                    <div className="partner-stats-grid">
+                      <div className="partner-stat">
+                        <div className="partner-stat-value">{partner.games}</div>
+                        <div className="partner-stat-label">Games</div>
+                      </div>
+                      <div className="partner-stat">
+                        <div className="partner-stat-value">{partner.avgScore}</div>
+                        <div className="partner-stat-label">Avg Score</div>
+                      </div>
+                      <div className="partner-stat">
+                        <div className="partner-stat-value">{partner.avgMistakes}</div>
+                        <div className="partner-stat-label">Avg Mistakes</div>
+                      </div>
+                      <div className="partner-stat">
+                        <div className="partner-stat-value">{partner.strikeoutRate}%</div>
+                        <div className="partner-stat-label">Strikeouts</div>
+                      </div>
+                      <div className="partner-stat">
+                        <div className="partner-stat-value">{partner.winRate}%</div>
+                        <div className="partner-stat-label">Win Rate</div>
+                      </div>
+                      <div className="partner-stat">
+                        <div className="partner-stat-value">{partner.bestScore}</div>
+                        <div className="partner-stat-label">Best</div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.section>
+          )}
+
           {/* Charts Section */}
           {(activeView === 'all' || activeView === 'charts') && (
             <motion.section
@@ -343,6 +500,66 @@ function App() {
               transition={{ duration: 0.6, delay: 0.3 }}
             >
               <div className="charts-grid">
+                {/* Critical Mistakes Trend */}
+                <div className="chart-container chart-full-width">
+                  <div className="chart-header">
+                    <span className="chart-icon">🔥</span>
+                    <h3 className="chart-title">Critical Mistakes Trend</h3>
+                  </div>
+                  <div className="chart-wrapper">
+                    {criticalLoading ? (
+                      <div className="chart-loading">
+                        <div className="loading-spinner" style={{ width: 40, height: 40 }}></div>
+                        <p className="loading-text">Analyzing games...</p>
+                      </div>
+                    ) : criticalError ? (
+                      <div className="chart-error">
+                        <p>Failed to load critical trends</p>
+                      </div>
+                    ) : criticalTrendData.length === 0 ? (
+                      <div className="chart-empty">
+                        <p>No data available</p>
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={criticalTrendData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#30363d" />
+                          <XAxis
+                            dataKey="game"
+                            stroke="#8b949e"
+                            tick={{ fill: '#8b949e', fontSize: 12 }}
+                          />
+                          <YAxis
+                            stroke="#8b949e"
+                            tick={{ fill: '#8b949e', fontSize: 12 }}
+                            allowDecimals={false}
+                          />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend
+                            formatter={(value) => <span style={{ color: '#c9d1d9' }}>{value}</span>}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="criticals"
+                            stroke={CHART_COLORS.rose}
+                            strokeWidth={1.5}
+                            dot={{ r: 3, fill: CHART_COLORS.rose }}
+                            name="Criticals"
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="rollingAvg"
+                            stroke={CHART_COLORS.gold}
+                            strokeWidth={3}
+                            dot={false}
+                            name="10-Game Avg"
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </div>
+
                 {/* Score Trend */}
                 <div className="chart-container">
                   <div className="chart-header">
