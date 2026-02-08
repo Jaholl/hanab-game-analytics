@@ -47,6 +47,14 @@ public class SarcasticDiscardChecker : IViolationChecker
                         otherCard.SuitIndex == myCard.SuitIndex &&
                         otherCard.Rank == myCard.Rank)
                     {
+                        // Don't flag sarcastic discard for trash cards (already played/dead suit)
+                        if (AnalysisHelpers.IsCardTrash(myCard, context.StateBefore))
+                            continue;
+
+                        // Don't flag sarcastic discard for playable cards (should play instead)
+                        if (AnalysisHelpers.IsCardPlayable(myCard, context.StateBefore))
+                            continue;
+
                         // Found a known duplicate!
                         // The player should have sarcastic-discarded myCard
                         // instead of discarding from chop

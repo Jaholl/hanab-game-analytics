@@ -28,12 +28,18 @@ public class PlayingMultipleOnesChecker : IViolationChecker
         // Only applies if the card was clued as rank 1 (player knows it's a 1)
         if (!card.ClueRanks[0]) return;
 
-        // Find all rank-1-clued 1s in hand
+        // If the played card is fully known (has both rank and color clues),
+        // the player knows exactly which 1 it is and can freely choose to play it.
+        if (IsFullyKnown(card)) return;
+
+        // Find all rank-1-clued 1s in hand, excluding fully-known 1s.
+        // Fully-known 1s (with both rank and color clues) don't participate
+        // in the "oldest first" ordering constraint.
         var cluedOnes = new List<(CardInHand card, int handIndex)>();
         for (int i = 0; i < hand.Count; i++)
         {
             var c = hand[i];
-            if (c.Rank == 1 && c.ClueRanks[0] && AnalysisHelpers.IsCardPlayable(c, context.StateBefore))
+            if (c.Rank == 1 && c.ClueRanks[0] && !IsFullyKnown(c) && AnalysisHelpers.IsCardPlayable(c, context.StateBefore))
             {
                 cluedOnes.Add((c, i));
             }
@@ -61,5 +67,14 @@ public class PlayingMultipleOnesChecker : IViolationChecker
                 Description = $"Played {suitName} 1 from slot {playedHandIndex} but should play oldest clued 1 from slot {oldestCluedOneIndex} first"
             });
         }
+    }
+
+    /// <summary>
+    /// A card is fully known when it has both a rank clue and a color clue,
+    /// allowing the player to deduce its exact identity.
+    /// </summary>
+    private static bool IsFullyKnown(CardInHand card)
+    {
+        return card.ClueRanks.Any(r => r) && card.ClueColors.Any(c => c);
     }
 }

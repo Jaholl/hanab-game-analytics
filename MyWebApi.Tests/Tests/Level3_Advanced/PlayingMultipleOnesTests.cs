@@ -118,7 +118,7 @@ public class PlayingMultipleOnesTests
         violations.Should().NotContainViolation(ViolationType.WrongOnesOrder);
     }
 
-    [Fact(Skip = "Known false positive: checker ignores additional color info on newer 1")]
+    [Fact]
     public void NewerOneHasColorClue_PlayingItFirst_NoViolation()
     {
         // Edge case: Alice has R1 (slot 0, rank-1 clued only) and Y1 (slot 2,
@@ -153,7 +153,7 @@ public class PlayingMultipleOnesTests
         violations.Should().NotContainViolation(ViolationType.WrongOnesOrder);
     }
 
-    [Fact(Skip = "Known false positive: checker ignores color clue disambiguation")]
+    [Fact]
     public void NewerOneHasColorInfo_ThreePlayer_NoViolation()
     {
         // 3-player version: Alice has R1(slot 0) and Y1(slot 2) both rank-1 clued.

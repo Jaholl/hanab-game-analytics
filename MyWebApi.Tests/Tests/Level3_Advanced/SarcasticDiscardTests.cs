@@ -108,7 +108,7 @@ public class SarcasticDiscardTests
         violations.Should().NotContainViolation(ViolationType.SarcasticDiscard);
     }
 
-    [Fact(Skip = "Known false positive: checker does not exclude trash duplicates")]
+    [Fact]
     public void KnownDuplicate_BothTrash_NoSarcasticDiscardNeeded()
     {
         // R1 already played. Alice and Bob both hold clued R1 (trash).
@@ -127,7 +127,7 @@ public class SarcasticDiscardTests
         violations.Should().NotContainViolation(ViolationType.SarcasticDiscard);
     }
 
-    [Fact(Skip = "Known false positive: checker does not exclude playable duplicates")]
+    [Fact]
     public void KnownDuplicate_ButPlayable_ShouldPlayNotSarcasticDiscard()
     {
         // Alice fully knows R1, Bob has clued R1. R1 is playable. Should play it.
