@@ -25,6 +25,7 @@ public class AnalysisContext
     // Accumulated state from trackers
     public List<ClueHistoryEntry> ClueHistory { get; } = new();
     public List<PendingFinesse> PendingFinesses { get; } = new();
+    public bool IsEarlyGame { get; set; } = true;
 
     // Collected violations
     public List<RuleViolation> Violations { get; } = new();

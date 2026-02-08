@@ -59,8 +59,9 @@ public class MisplayChecker : IViolationChecker
         // At Level 2+, check blame attribution
         if (context.Options.Level >= ConventionLevel.Level2_Intermediate && relevantClue != null)
         {
+            var stateAtClue = context.States[relevantClue.Turn - 1];
             bool validFinesseExists = AnalysisHelpers.CheckForValidFinesse(
-                relevantClue, context.StateBefore, context.Game, card);
+                relevantClue, stateAtClue, context.Game, card);
 
             if (!validFinesseExists)
             {

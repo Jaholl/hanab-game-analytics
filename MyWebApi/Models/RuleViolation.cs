@@ -87,6 +87,7 @@ public record PendingFinesse
     public int NeededRank { get; init; }
     public bool IsResolved { get; set; }
     public bool WasStomped { get; set; }
+    public int ResponseDeadlineActionIndex { get; init; } = -1;
 }
 
 public record ClueHistoryEntry

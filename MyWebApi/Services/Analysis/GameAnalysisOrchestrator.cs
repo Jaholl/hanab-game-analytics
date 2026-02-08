@@ -28,6 +28,7 @@ public class GameAnalysisOrchestrator
         // State trackers
         _trackerRegistry.Register(new ClueHistoryTracker());
         _trackerRegistry.Register(new PendingFinesseTracker());
+        _trackerRegistry.Register(new EarlyGameTracker());
 
         // Level 0
         _checkerRegistry.Register(new MisplayChecker());
@@ -44,6 +45,9 @@ public class GameAnalysisOrchestrator
 
         // Level 2
         _checkerRegistry.Register(new DoubleDiscardAvoidanceChecker());
+        _checkerRegistry.Register(new FiveStallChecker());
+        _checkerRegistry.Register(new StompedFinesseChecker());
+        _checkerRegistry.Register(new WrongPromptChecker());
 
         // Level 3
         _checkerRegistry.Register(new PlayingMultipleOnesChecker());

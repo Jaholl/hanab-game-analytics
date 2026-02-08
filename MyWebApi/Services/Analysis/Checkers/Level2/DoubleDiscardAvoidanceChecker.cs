@@ -33,6 +33,8 @@ public class DoubleDiscardAvoidanceChecker : IViolationChecker
         var previousDiscardedCard = previousHand.FirstOrDefault(c => c.DeckIndex == previousAction.Target);
         if (previousDiscardedCard == null) return;
 
+        if (AnalysisHelpers.IsCardTrash(previousDiscardedCard, previousState)) return;
+
         var previousDiscardIndex = previousHand.FindIndex(c => c.DeckIndex == previousAction.Target);
         if (previousDiscardIndex != previousChopIndex.Value) return;
 

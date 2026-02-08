@@ -42,18 +42,36 @@ public class FinesseSetupChecker : IViolationChecker
 
         if (touchedCards.Count == 0) return;
 
-        var focusCard = touchedCards.OrderByDescending(t => t.index).First().card;
+        // H-Group 4-step focus: if chop is among newly touched, focus = chop
+        int? chopIndex = null;
+        for (int i = 0; i < targetHand.Count; i++)
+        {
+            if (!targetHand[i].HasAnyClue) { chopIndex = i; break; }
+        }
+
+        CardInHand focusCard;
+        if (chopIndex.HasValue && touchedCards.Any(t => t.index == chopIndex.Value))
+        {
+            // Case 3: chop is among newly touched → focus on chop
+            focusCard = touchedCards.First(t => t.index == chopIndex.Value).card;
+        }
+        else
+        {
+            // Case 2 (one new) or Case 4 (multiple new, no chop) → leftmost = highest hand index
+            focusCard = touchedCards.OrderByDescending(t => t.index).First().card;
+        }
 
         if (AnalysisHelpers.IsCardPlayable(focusCard, state)) return;
 
         var neededRank = state.PlayStacks[focusCard.SuitIndex] + 1;
         if (focusCard.Rank != neededRank + 1) return;
 
+        // Scan ALL other players (not just before target) to detect reverse finesses
         int finessePlayerIndex = -1;
         for (int offset = 1; offset < numPlayers; offset++)
         {
             int checkPlayer = (context.CurrentPlayerIndex + offset) % numPlayers;
-            if (checkPlayer == targetPlayer) break;
+            if (checkPlayer == targetPlayer) continue;
 
             var checkHand = state.Hands[checkPlayer];
             if (checkHand.Count == 0) continue;
@@ -83,19 +101,19 @@ public class FinesseSetupChecker : IViolationChecker
         }
         if (finesseActionIndex == -1) return;
 
-        var finesseAction = game.Actions[finesseActionIndex];
-
-        if (finesseAction.Type != ActionType.Play)
+        // Register the pending finesse with a deadline. PendingFinesseTracker will
+        // resolve it when the finesse player's turn is processed, emitting MissedFinesse
+        // if they don't respond. This allows StompedFinesseChecker to detect stomps
+        // on intervening turns before the deadline.
+        context.PendingFinesses.Add(new PendingFinesse
         {
-            var suitName = AnalysisHelpers.GetSuitName(focusCard.SuitIndex);
-            context.Violations.Add(new RuleViolation
-            {
-                Turn = context.Turn,
-                Player = game.Players[finessePlayerIndex],
-                Type = ViolationType.MissedFinesse,
-                Severity = Severity.Info,
-                Description = $"Possible finesse for {suitName} {neededRank} was set up but not followed"
-            });
-        }
+            SetupTurn = context.Turn,
+            ClueGiverIndex = context.CurrentPlayerIndex,
+            TargetPlayerIndex = targetPlayer,
+            FinessePlayerIndex = finessePlayerIndex,
+            NeededSuitIndex = focusCard.SuitIndex,
+            NeededRank = neededRank,
+            ResponseDeadlineActionIndex = finesseActionIndex
+        });
     }
 }

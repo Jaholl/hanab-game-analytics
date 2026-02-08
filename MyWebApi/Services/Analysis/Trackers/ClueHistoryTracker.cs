@@ -25,8 +25,7 @@ public class ClueHistoryTracker : IStateTracker
 
         var targetHand = state.Hands[targetPlayer];
         var touchedIndices = new List<int>();
-        int? focusIndex = null;
-        int? focusHandIndex = null;
+        var newlyTouched = new List<(int deckIndex, int handIndex)>();
 
         for (int i = 0; i < targetHand.Count; i++)
         {
@@ -38,13 +37,30 @@ public class ClueHistoryTracker : IStateTracker
             {
                 touchedIndices.Add(card.DeckIndex);
                 if (!card.HasAnyClue)
-                {
-                    if (!focusIndex.HasValue || i > focusHandIndex)
-                    {
-                        focusIndex = card.DeckIndex;
-                        focusHandIndex = i;
-                    }
-                }
+                    newlyTouched.Add((card.DeckIndex, i));
+            }
+        }
+
+        // H-Group 4-step focus: if chop is among newly touched, focus = chop
+        int? focusIndex = null;
+        if (newlyTouched.Count > 0)
+        {
+            // Determine chop index (first unclued card in hand)
+            int? chopIndex = null;
+            for (int i = 0; i < targetHand.Count; i++)
+            {
+                if (!targetHand[i].HasAnyClue) { chopIndex = i; break; }
+            }
+
+            if (chopIndex.HasValue && newlyTouched.Any(t => t.handIndex == chopIndex.Value))
+            {
+                // Case 3: chop is among newly touched → focus on chop
+                focusIndex = newlyTouched.First(t => t.handIndex == chopIndex.Value).deckIndex;
+            }
+            else
+            {
+                // Case 2 (one new) or Case 4 (multiple new, no chop) → leftmost = highest hand index
+                focusIndex = newlyTouched.OrderByDescending(t => t.handIndex).First().deckIndex;
             }
         }
 

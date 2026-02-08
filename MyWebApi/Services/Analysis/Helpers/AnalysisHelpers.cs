@@ -129,11 +129,13 @@ public static class AnalysisHelpers
         var neededRank = stateAtClue.PlayStacks[targetCard.SuitIndex] + 1;
         if (targetCard.Rank <= neededRank) return false;
 
+        // Scan all players (skipping target) to detect both forward and reverse finesses,
+        // consistent with FinesseSetupChecker's detection logic.
         var numPlayers = game.Players.Count;
         for (int offset = 1; offset < numPlayers; offset++)
         {
             int checkPlayer = (clue.ClueGiverIndex + offset) % numPlayers;
-            if (checkPlayer == clue.TargetPlayerIndex) break;
+            if (checkPlayer == clue.TargetPlayerIndex) continue;
 
             var checkHand = stateAtClue.Hands[checkPlayer];
             var finessePosIndex = GetFinessePositionIndex(checkHand);

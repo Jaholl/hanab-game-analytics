@@ -39,5 +39,27 @@ public class PendingFinesseTracker : IStateTracker
                 }
             }
         }
+
+        // Resolve expired pending finesses whose deadline has passed without response.
+        // This is deferred from FinesseSetupChecker so that StompedFinesseChecker can
+        // detect stomps on intervening turns before the deadline.
+        foreach (var finesse in context.PendingFinesses)
+        {
+            if (finesse.IsResolved || finesse.WasStomped) continue;
+            if (finesse.ResponseDeadlineActionIndex < 0) continue;
+            if (context.ActionIndex < finesse.ResponseDeadlineActionIndex) continue;
+
+            finesse.IsResolved = true;
+
+            var suitName = AnalysisHelpers.GetSuitName(finesse.NeededSuitIndex);
+            context.Violations.Add(new RuleViolation
+            {
+                Turn = finesse.SetupTurn,
+                Player = context.Game.Players[finesse.FinessePlayerIndex],
+                Type = ViolationType.MissedFinesse,
+                Severity = Severity.Info,
+                Description = $"Possible finesse for {suitName} {finesse.NeededRank} was set up but not followed"
+            });
+        }
     }
 }
