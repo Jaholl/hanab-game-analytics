@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import GameStateVisualization from './GameStateVisualization'
+import BotAnalysisPanel from './BotAnalysisPanel'
 
 const SUIT_NAMES = ['Red', 'Yellow', 'Green', 'Blue', 'Purple']
 const SUIT_COLORS = ['#ff4444', '#ffdd44', '#44dd44', '#4488ff', '#aa44ff']
@@ -289,6 +290,9 @@ function GameDetail({ gameId, analysis, loading, error, onBack }) {
           <p className="no-violations-subtitle">Great teamwork!</p>
         </motion.div>
       )}
+
+      {/* Bot Analysis */}
+      <BotAnalysisPanel gameId={game.id} />
 
       {/* Action Timeline */}
       <motion.div
