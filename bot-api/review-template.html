@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hanabi Game Review</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; }
+
+.header { background: #16213e; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #0f3460; }
+.header h1 { font-size: 1.3em; color: #e94560; }
+.header-right { display: flex; align-items: center; gap: 16px; font-size: 0.9em; }
+.header-right label { color: #aaa; }
+.header-right select { background: #0f3460; color: #e0e0e0; border: 1px solid #e94560; padding: 4px 8px; border-radius: 4px; }
+
+.main { padding: 16px 24px; overflow-y: auto; height: calc(100vh - 52px - 64px); }
+
+/* Game info bar */
+.info-bar { display: flex; gap: 20px; margin-bottom: 16px; font-size: 0.9em; }
+.info-item { display: flex; align-items: center; gap: 4px; }
+.info-label { color: #888; }
+.info-value { font-weight: bold; }
+.strikes .info-value { color: #e94560; }
+.clues .info-value { color: #4fc3f7; }
+.score .info-value { color: #66bb6a; }
+
+/* Play stacks */
+.stacks-area { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.stack { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.stack-label { font-size: 0.7em; color: #888; }
+
+/* Cards */
+.card { width: 48px; height: 68px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2em; border: 2px solid rgba(255,255,255,0.2); position: relative; transition: box-shadow 0.15s, border-color 0.15s, transform 0.15s; }
+.card.clued { border-color: rgba(255,255,0,0.6); box-shadow: 0 0 4px rgba(255,255,0,0.3); }
+.card.empty { background: #2a2a3e; border-style: dashed; border-color: #444; }
+.card-small { width: 32px; height: 44px; font-size: 0.85em; border-radius: 4px; }
+
+.card.highlight-touch { border-color: #fff !important; box-shadow: 0 0 12px rgba(255,255,255,0.6), 0 0 4px rgba(255,255,255,0.3) !important; transform: translateY(-4px); z-index: 2; }
+.card.highlight-play { border-color: #66bb6a !important; box-shadow: 0 0 12px rgba(102,187,106,0.6) !important; transform: translateY(-4px); z-index: 2; }
+.card.highlight-discard { border-color: #e94560 !important; box-shadow: 0 0 12px rgba(233,69,96,0.6) !important; transform: translateY(-4px); z-index: 2; }
+
+.card-back { background: linear-gradient(135deg, #2c3e6b, #1a2744); border: 2px solid #3a4f7a; }
+.card-back-pattern { font-size: 1.4em; opacity: 0.3; }
+
+.suit-0 { background: linear-gradient(135deg, #d32f2f, #b71c1c); color: #fff; }
+.suit-1 { background: linear-gradient(135deg, #fdd835, #f9a825); color: #333; }
+.suit-2 { background: linear-gradient(135deg, #388e3c, #2e7d32); color: #fff; }
+.suit-3 { background: linear-gradient(135deg, #1976d2, #1565c0); color: #fff; }
+.suit-4 { background: linear-gradient(135deg, #7b1fa2, #6a1b9a); color: #fff; }
+.suit-5 { background: linear-gradient(135deg, #00838f, #006064); color: #fff; }
+.suit-unknown { background: #444; color: #aaa; }
+
+/* Hands */
+.hands-area { margin-bottom: 16px; }
+.hand-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.hand-name { width: 80px; font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hand-name.active { color: #e94560; font-weight: bold; }
+.hand-cards { display: flex; gap: 5px; }
+.slot-label { position: absolute; bottom: -14px; font-size: 0.6em; color: #666; }
+
+/* Action + Analysis row */
+.analysis-row { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start; flex-wrap: wrap; }
+.action-summary { flex: 0 0 320px; background: #16213e; border-radius: 8px; padding: 12px 16px; border: 1px solid #0f3460; }
+.turn-header { font-size: 1em; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #0f3460; }
+.turn-number { color: #e94560; }
+.turn-player { color: #4fc3f7; }
+
+.action-label { font-size: 0.8em; color: #888; margin-bottom: 3px; }
+.action-text { padding: 6px 8px; border-radius: 4px; font-size: 0.9em; margin-bottom: 6px; }
+.action-actual { background: #1a1a2e; }
+.action-bot { background: #0f3460; }
+
+.classification-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.8em; font-weight: bold; margin-left: 8px; }
+.cls-correct { background: #2e7d32; color: #c8e6c9; }
+.cls-good { background: #558b2f; color: #dcedc8; }
+.cls-inaccuracy { background: #f9a825; color: #333; }
+.cls-mistake { background: #e65100; color: #fff; }
+.cls-blunder { background: #c62828; color: #fff; }
+.cls-unknown { background: #555; color: #ccc; }
+
+/* Candidates table */
+.candidates-section { flex: 1; min-width: 400px; }
+.candidates-title { font-size: 0.85em; color: #888; margin-bottom: 6px; }
+.candidates-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+.candidates-table th { text-align: left; padding: 4px 8px; color: #888; font-weight: normal; font-size: 0.85em; border-bottom: 1px solid #0f3460; }
+.candidates-table td { padding: 5px 8px; }
+.candidates-table tr { border-radius: 4px; cursor: default; transition: background 0.1s; }
+.candidates-table tbody tr:hover { background: rgba(255,255,255,0.05); }
+.candidates-table tr.is-actual { background: rgba(233,69,96,0.12); }
+.candidates-table tr.is-actual td:first-child { border-left: 3px solid #e94560; }
+.candidates-table tr.is-bot { background: rgba(79,195,247,0.12); }
+.candidates-table tr.is-bot td:first-child { border-left: 3px solid #4fc3f7; }
+.candidates-table tr.is-actual.is-bot { background: rgba(156,132,172,0.15); }
+.candidates-table .col-rank { width: 30px; color: #666; text-align: center; }
+.candidates-table .col-type { width: 70px; }
+.candidates-table .col-value { width: 55px; text-align: right; color: #aaa; }
+.candidates-table .col-tags { width: 80px; text-align: right; }
+.candidate-tag { font-size: 0.7em; padding: 1px 6px; border-radius: 8px; margin-left: 3px; }
+.tag-actual { background: #e94560; color: #fff; }
+.tag-bot { background: #4fc3f7; color: #333; }
+.type-badge { font-size: 0.75em; padding: 1px 5px; border-radius: 4px; }
+.type-play_clue { background: #1b5e20; color: #a5d6a7; }
+.type-save_clue { background: #4a148c; color: #ce93d8; }
+.type-stall_clue { background: #455a64; color: #b0bec5; }
+.type-play { background: #0d47a1; color: #90caf9; }
+.type-trash_discard, .type-chop_discard { background: #bf360c; color: #ffab91; }
+
+/* Breakdown detail row */
+.candidates-table tbody tr.candidate-row { cursor: pointer; }
+.candidates-table tbody tr.candidate-row:hover { background: rgba(255,255,255,0.07); }
+.breakdown-row { display: none; }
+.breakdown-row.open { display: table-row; }
+.breakdown-row td { padding: 6px 8px 10px 38px; }
+.breakdown-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 4px 16px; font-size: 0.85em; }
+.breakdown-item { display: flex; justify-content: space-between; padding: 2px 0; }
+.breakdown-label { color: #888; }
+.breakdown-val { font-weight: bold; }
+.breakdown-val.positive { color: #66bb6a; }
+.breakdown-val.negative { color: #e94560; }
+.breakdown-val.neutral { color: #aaa; }
+.breakdown-details { margin-top: 4px; font-size: 0.85em; color: #999; }
+.breakdown-details span { color: #bbb; }
+.play-reason { font-size: 0.85em; color: #999; padding: 4px 0; }
+
+/* Player stats + legend */
+.bottom-section { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+.player-stats { flex: 0 0 320px; }
+.player-stat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 0.8em; }
+.player-stat-name { width: 70px; }
+.player-accuracy-bar { flex: 1; height: 12px; background: #1a1a2e; border-radius: 6px; overflow: hidden; display: flex; }
+.player-pct { width: 40px; text-align: right; font-size: 0.85em; }
+
+.legend { flex: 1; min-width: 300px; }
+.legend-toggle { cursor: pointer; font-size: 0.85em; color: #888; user-select: none; }
+.legend-toggle:hover { color: #e0e0e0; }
+.legend-content { display: none; margin-top: 8px; font-size: 0.8em; line-height: 1.6; }
+.legend-content.open { display: block; }
+.legend-content h4 { color: #4fc3f7; margin: 8px 0 4px; }
+.legend-content p { color: #aaa; }
+.priority-list { list-style: none; padding: 0; margin: 4px 0; counter-reset: priority; }
+.priority-list li { padding: 3px 0 3px 8px; border-left: 2px solid #0f3460; margin-bottom: 2px; color: #bbb; }
+.priority-list li .pri-num { color: #e94560; font-weight: bold; margin-right: 4px; }
+.priority-list li .pri-level { font-size: 0.8em; color: #666; margin-left: 4px; }
+.priority-list li .pri-note { color: #888; font-style: italic; }
+
+/* Discard pile */
+.discard-area { margin-bottom: 16px; }
+.discard-title { font-size: 0.8em; color: #888; margin-bottom: 4px; }
+.discard-grid { display: flex; gap: 2px; flex-wrap: wrap; }
+
+/* Bottom bar */
+.bottom-bar { height: 64px; background: #16213e; border-top: 2px solid #0f3460; display: flex; align-items: center; padding: 0 24px; gap: 16px; position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; }
+
+.nav-controls { display: flex; gap: 6px; align-items: center; }
+.nav-btn { background: #0f3460; border: 1px solid #e94560; color: #e0e0e0; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85em; }
+.nav-btn:hover { background: #e94560; }
+.nav-btn:disabled { opacity: 0.4; cursor: default; background: #0f3460; }
+.turn-display { font-size: 0.9em; min-width: 100px; text-align: center; }
+
+/* Progress bar */
+.progress-bar { flex: 1; height: 20px; display: flex; border-radius: 4px; overflow: hidden; cursor: pointer; }
+.progress-segment { height: 100%; min-width: 2px; transition: opacity 0.1s; }
+.progress-segment:hover { opacity: 0.7; }
+.seg-correct { background: #2e7d32; }
+.seg-good { background: #558b2f; }
+.seg-inaccuracy { background: #f9a825; }
+.seg-mistake { background: #e65100; }
+.seg-blunder { background: #c62828; }
+.seg-unknown { background: #555; }
+.seg-active { outline: 2px solid #fff; z-index: 1; position: relative; }
+
+/* Summary stats */
+.summary-stats { display: flex; gap: 12px; font-size: 0.8em; align-items: center; }
+.stat-item { white-space: nowrap; }
+.stat-label { color: #888; }
+.stat-value { font-weight: bold; }
+</style>
+</head>
+<body>
+<script>
+/*__REVIEW_DATA__*/
+</script>
+
+<div class="header">
+	<h1>Hanabi Game Review</h1>
+	<div class="header-right">
+		<span id="gameInfoLabel"></span>
+		<label>Level: <select id="levelSelect" disabled></select></label>
+		<span style="font-size:0.8em;color:#888;" id="levelNote"></span>
+	</div>
+</div>
+
+<div class="main" id="mainArea">
+	<div class="info-bar" id="infoBar"></div>
+	<div class="stacks-area" id="stacksArea"></div>
+	<div class="hands-area" id="handsArea"></div>
+
+	<div class="analysis-row">
+		<div class="action-summary" id="actionSummary">
+			<div class="turn-header" id="turnHeader"></div>
+			<div id="actionSection"></div>
+		</div>
+		<div class="candidates-section" id="candidatesSection"></div>
+	</div>
+
+	<div class="bottom-section">
+		<div class="player-stats" id="playerStats"></div>
+		<div class="legend">
+			<div class="legend-toggle" id="legendToggle">&#9654; Scoring Legend</div>
+			<div class="legend-content" id="legendContent"></div>
+		</div>
+	</div>
+</div>
+
+<div class="bottom-bar">
+	<div class="nav-controls">
+		<button class="nav-btn" id="btnFirst" title="First turn (Home)">&#x23EE;</button>
+		<button class="nav-btn" id="btnPrev" title="Previous turn (Left arrow)">&#x25C0;</button>
+		<span class="turn-display" id="turnDisplay">Turn 0/0</span>
+		<button class="nav-btn" id="btnNext" title="Next turn (Right arrow)">&#x25B6;</button>
+		<button class="nav-btn" id="btnLast" title="Last turn (End)">&#x23ED;</button>
+	</div>
+	<div class="progress-bar" id="progressBar"></div>
+	<div class="summary-stats" id="summaryStats"></div>
+</div>
+
+<script>
+(function() {
+	if (typeof REVIEW_DATA === 'undefined') {
+		document.body.innerHTML = '<div style="padding:40px;text-align:center;"><h2>No review data found.</h2><p>Run the review script to generate data.</p></div>';
+		return;
+	}
+
+	const data = REVIEW_DATA;
+	const { gameInfo, summary, turns } = data;
+	let currentTurnIndex = 0;
+
+	const SUIT_COLORS = ['#d32f2f','#fdd835','#388e3c','#1976d2','#7b1fa2','#00838f','#ff6f00','#546e7a','#ec407a','#8d6e63'];
+	const SUIT_TEXT_COLORS = ['#fff','#333','#fff','#fff','#fff','#fff','#fff','#fff','#fff','#fff'];
+	// ACTION constants matching the bot
+	const ACTION = { PLAY: 0, DISCARD: 1, COLOUR: 2, RANK: 3 };
+
+	// Track card elements for hover highlighting
+	let handCardElements = []; // handCardElements[playerIndex][cardIndex] = { el, suitIndex, rank, order }
+
+	// Init header
+	document.getElementById('gameInfoLabel').textContent = `${gameInfo.variant} | ${gameInfo.players.length}p | ID: ${gameInfo.id}`;
+	const levelSelect = document.getElementById('levelSelect');
+	const opt = document.createElement('option');
+	opt.value = gameInfo.level;
+	opt.textContent = gameInfo.level;
+	levelSelect.appendChild(opt);
+	document.getElementById('levelNote').textContent = `(re-run with level=N to change)`;
+
+	// Build progress bar
+	const progressBar = document.getElementById('progressBar');
+	turns.forEach((t, i) => {
+		const seg = document.createElement('div');
+		seg.className = `progress-segment seg-${t.classification}`;
+		seg.style.flex = '1';
+		seg.title = `Turn ${t.turn}: ${t.playerName} - ${t.actualAction} (${t.classification})`;
+		seg.addEventListener('click', () => goToTurn(i));
+		progressBar.appendChild(seg);
+	});
+
+	// Summary stats
+	const summaryStats = document.getElementById('summaryStats');
+	summaryStats.innerHTML = `
+		<span class="stat-item"><span class="stat-label">Accuracy: </span><span class="stat-value">${summary.accuracy}%</span></span>
+		<span class="stat-item" style="color:#e65100;"><span class="stat-label">Mistakes: </span><span class="stat-value">${(summary.classifications.mistake || 0) + (summary.classifications.blunder || 0)}</span></span>
+		<span class="stat-item" style="color:#f9a825;"><span class="stat-label">Inaccuracies: </span><span class="stat-value">${summary.classifications.inaccuracy || 0}</span></span>
+	`;
+
+	// Legend toggle
+	document.getElementById('legendToggle').addEventListener('click', function() {
+		const content = document.getElementById('legendContent');
+		const isOpen = content.classList.toggle('open');
+		this.innerHTML = (isOpen ? '&#9660;' : '&#9654;') + ' Scoring Legend';
+	});
+
+	// Navigation
+	document.getElementById('btnFirst').addEventListener('click', () => goToTurn(0));
+	document.getElementById('btnPrev').addEventListener('click', () => goToTurn(currentTurnIndex - 1));
+	document.getElementById('btnNext').addEventListener('click', () => goToTurn(currentTurnIndex + 1));
+	document.getElementById('btnLast').addEventListener('click', () => goToTurn(turns.length - 1));
+
+	document.addEventListener('keydown', (e) => {
+		if (e.key === 'ArrowLeft') goToTurn(currentTurnIndex - 1);
+		else if (e.key === 'ArrowRight') goToTurn(currentTurnIndex + 1);
+		else if (e.key === 'Home') goToTurn(0);
+		else if (e.key === 'End') goToTurn(turns.length - 1);
+	});
+
+	function makeCard(suitIndex, rank, options = {}) {
+		const card = document.createElement('div');
+		const sizeClass = options.small ? ' card-small' : '';
+		const cluedClass = options.clued ? ' clued' : '';
+
+		if (options.hidden) {
+			card.className = `card card-back${sizeClass}${cluedClass}`;
+			const pattern = document.createElement('span');
+			pattern.className = 'card-back-pattern';
+			pattern.textContent = '\u2668';
+			card.appendChild(pattern);
+		} else if (suitIndex === -1 || suitIndex === undefined) {
+			card.className = `card suit-unknown${sizeClass}${cluedClass}`;
+			card.textContent = '?';
+		} else {
+			card.className = `card suit-${suitIndex}${sizeClass}${cluedClass}`;
+			card.textContent = rank;
+			card.style.background = `linear-gradient(135deg, ${SUIT_COLORS[suitIndex] || '#555'}, ${SUIT_COLORS[suitIndex] || '#555'}dd)`;
+			card.style.color = SUIT_TEXT_COLORS[suitIndex] || '#fff';
+		}
+		return card;
+	}
+
+	const PRIORITY_NAMES = ['P0: Finesse/blind play', 'P1: Connects to others', 'P2: Connects in own hand', 'P3: Playing a 5', 'P4: Unknown card', 'P5: Other/oldest'];
+
+	function renderBreakdown(candidate) {
+		const b = candidate.breakdown;
+		if (!b) {
+			// Play/discard — show reason based on type
+			if (candidate.type === 'play') {
+				const match = candidate.description.match(/priority (\d)/);
+				const pri = match ? parseInt(match[1]) : -1;
+				return `<div class="play-reason">${PRIORITY_NAMES[pri] || 'Playable card'}</div>`;
+			}
+			if (candidate.type === 'chop_discard') return '<div class="play-reason">Oldest unclued card (chop) — default discard</div>';
+			if (candidate.type === 'trash_discard') return '<div class="play-reason">Known trash — safe to discard</div>';
+			return '<div class="play-reason">No detailed breakdown available</div>';
+		}
+
+		function valClass(v) { return v > 0 ? 'positive' : v < 0 ? 'negative' : 'neutral'; }
+		function fmt(v) { return v > 0 ? '+' + v : String(v); }
+
+		const halfPlay = 0.5 * (b.finesses + b.playables);
+		const badTouchPenalty = -1 * b.badTouch;
+		const cmPenalty = -0.1 * b.cmDupe;
+		const avoidPenalty = -0.1 * b.avoidableDupe;
+		const remainderPenalty = -0.1 * (b.remainder ** 2);
+		const elimBonus = 0.01 * b.elim;
+
+		let html = '<div class="breakdown-grid">';
+		html += `<div class="breakdown-item"><span class="breakdown-label">Finesses + Playables</span><span class="breakdown-val ${valClass(halfPlay)}">${fmt(Math.round(halfPlay * 100) / 100)} <small>(${b.finesses}f + ${b.playables}p) &times; 0.5</small></span></div>`;
+		html += `<div class="breakdown-item"><span class="breakdown-label">New touched</span><span class="breakdown-val ${valClass(b.newTouchedValue)}">${fmt(b.newTouchedValue)} <small>(${b.newTouched} cards)</small></span></div>`;
+		html += `<div class="breakdown-item"><span class="breakdown-label">Precision</span><span class="breakdown-val ${valClass(b.precision)}">${fmt(b.precision)}</span></div>`;
+		html += `<div class="breakdown-item"><span class="breakdown-label">Elimination</span><span class="breakdown-val ${valClass(elimBonus)}">${fmt(Math.round(elimBonus * 100) / 100)} <small>(${b.elim} elim)</small></span></div>`;
+		if (b.badTouch > 0) html += `<div class="breakdown-item"><span class="breakdown-label">Bad touch</span><span class="breakdown-val negative">${fmt(badTouchPenalty)} <small>(${b.badTouch} cards)</small></span></div>`;
+		if (b.cmDupe > 0) html += `<div class="breakdown-item"><span class="breakdown-label">CM dupe</span><span class="breakdown-val negative">${fmt(Math.round(cmPenalty * 100) / 100)}</span></div>`;
+		if (b.avoidableDupe > 0) html += `<div class="breakdown-item"><span class="breakdown-label">Avoidable dupe</span><span class="breakdown-val negative">${fmt(Math.round(avoidPenalty * 100) / 100)}</span></div>`;
+		if (Math.abs(b.remainder) > 0) html += `<div class="breakdown-item"><span class="breakdown-label">Remainder</span><span class="breakdown-val negative">${fmt(Math.round(remainderPenalty * 100) / 100)} <small>(${b.remainder}&sup2;)</small></span></div>`;
+		html += '</div>';
+
+		// Details
+		if (b.finesseDetails?.length > 0) html += `<div class="breakdown-details">Finesses: <span>${b.finesseDetails.join(', ')}</span></div>`;
+		if (b.playableDetails?.length > 0) html += `<div class="breakdown-details">Playables: <span>${b.playableDetails.join(', ')}</span></div>`;
+		if (b.badTouchDetails?.length > 0) html += `<div class="breakdown-details">Bad touch: <span>${b.badTouchDetails.join(', ')}</span></div>`;
+
+		return html;
+	}
+
+	function clearHighlights() {
+		for (const playerCards of handCardElements) {
+			for (const c of playerCards) {
+				c.el.classList.remove('highlight-touch', 'highlight-play', 'highlight-discard');
+			}
+		}
+	}
+
+	function highlightCandidate(candidate, state) {
+		clearHighlights();
+		if (!candidate || !candidate.action) return;
+
+		const act = candidate.action;
+
+		if (act.type === ACTION.PLAY || act.type === ACTION.DISCARD) {
+			// Highlight the specific card in current player's hand
+			const cls = act.type === ACTION.PLAY ? 'highlight-play' : 'highlight-discard';
+			const playerCards = handCardElements[state.currentPlayerIndex];
+			if (playerCards) {
+				for (const c of playerCards) {
+					if (c.order === act.target) {
+						c.el.classList.add(cls);
+					}
+				}
+			}
+		} else if (act.type === ACTION.COLOUR || act.type === ACTION.RANK) {
+			// Highlight cards in target player's hand that match the clue
+			const targetCards = handCardElements[act.target];
+			if (targetCards) {
+				for (const c of targetCards) {
+					let matches = false;
+					if (act.type === ACTION.COLOUR) {
+						matches = c.suitIndex === act.value;
+					} else {
+						matches = c.rank === act.value;
+					}
+					if (matches) {
+						c.el.classList.add('highlight-touch');
+					}
+				}
+			}
+		}
+	}
+
+	function renderBoard(state) {
+		if (!state) return;
+
+		// Info bar
+		const infoBar = document.getElementById('infoBar');
+		infoBar.innerHTML = `
+			<div class="info-item clues"><span class="info-label">Clues:</span> <span class="info-value">${state.clueTokens}</span></div>
+			<div class="info-item score"><span class="info-label">Score:</span> <span class="info-value">${state.score}/${state.maxScore}</span></div>
+			<div class="info-item strikes"><span class="info-label">Strikes:</span> <span class="info-value">${'X'.repeat(state.strikes)}${'_'.repeat(3 - state.strikes)}</span></div>
+			<div class="info-item"><span class="info-label">Pace:</span> <span class="info-value">${state.pace}</span></div>
+			<div class="info-item"><span class="info-label">Deck:</span> <span class="info-value">${state.cardsLeft}</span></div>
+		`;
+
+		// Play stacks
+		const stacksArea = document.getElementById('stacksArea');
+		stacksArea.innerHTML = '';
+		for (let s = 0; s < state.numSuits; s++) {
+			const stack = document.createElement('div');
+			stack.className = 'stack';
+
+			const stackRank = state.playStacks[s];
+			if (stackRank > 0) {
+				stack.appendChild(makeCard(s, stackRank));
+			} else {
+				const empty = document.createElement('div');
+				empty.className = 'card empty';
+				const sf = (state.shortForms && state.shortForms[s]) || s;
+				empty.textContent = String(sf).toUpperCase();
+				stack.appendChild(empty);
+			}
+
+			const label = document.createElement('div');
+			label.className = 'stack-label';
+			label.textContent = (state.suits && state.suits[s]) || `Suit ${s}`;
+			stack.appendChild(label);
+			stacksArea.appendChild(stack);
+		}
+
+		// Hands
+		handCardElements = [];
+		const handsArea = document.getElementById('handsArea');
+		handsArea.innerHTML = '';
+		for (let p = 0; p < state.hands.length; p++) {
+			const row = document.createElement('div');
+			row.className = 'hand-row';
+
+			const name = document.createElement('div');
+			name.className = 'hand-name' + (p === state.currentPlayerIndex ? ' active' : '');
+			name.textContent = gameInfo.players[p];
+			row.appendChild(name);
+
+			const cardsDiv = document.createElement('div');
+			cardsDiv.className = 'hand-cards';
+			const playerCards = [];
+
+			for (let ci = 0; ci < state.hands[p].length; ci++) {
+				const c = state.hands[p][ci];
+				const isCurrentPlayer = p === state.currentPlayerIndex;
+				const cardEl = makeCard(c.suitIndex, c.rank, {
+					clued: c.clued,
+					hidden: isCurrentPlayer
+				});
+
+				// Add slot label
+				const slotLabel = document.createElement('span');
+				slotLabel.className = 'slot-label';
+				slotLabel.textContent = ci + 1;
+				cardEl.appendChild(slotLabel);
+				cardEl.style.position = 'relative';
+
+				cardsDiv.appendChild(cardEl);
+				playerCards.push({ el: cardEl, suitIndex: c.suitIndex, rank: c.rank, order: c.order });
+			}
+
+			handCardElements.push(playerCards);
+			row.appendChild(cardsDiv);
+			handsArea.appendChild(row);
+		}
+	}
+
+	function renderAnalysis(turnData) {
+		if (!turnData) return;
+
+		// Turn header
+		const header = document.getElementById('turnHeader');
+		header.innerHTML = `<span class="turn-number">Turn ${turnData.turn}</span> &mdash; <span class="turn-player">${turnData.playerName}</span>`;
+
+		// Action section
+		const section = document.getElementById('actionSection');
+		const clsBadge = `<span class="classification-badge cls-${turnData.classification}">${turnData.classification}</span>`;
+		section.innerHTML = `
+			<div class="action-label">Actual ${clsBadge}</div>
+			<div class="action-text action-actual">${turnData.actualAction || 'N/A'}</div>
+			${turnData.botRecommendation ? `
+				<div class="action-label">Bot recommends</div>
+				<div class="action-text action-bot">${turnData.botRecommendation}</div>
+			` : ''}
+		`;
+
+		// Candidates table
+		const candidatesDiv = document.getElementById('candidatesSection');
+
+		if (turnData.candidates && turnData.candidates.length > 0) {
+			let html = '<div class="candidates-title">Candidates by priority &amp; value (click for details)</div>';
+			html += `<table class="candidates-table">
+				<thead><tr>
+					<th class="col-rank">#</th>
+					<th>Action</th>
+					<th class="col-type">Type</th>
+					<th class="col-value">Value</th>
+					<th class="col-tags"></th>
+				</tr></thead><tbody>`;
+
+			let lastRank = -1;
+			for (let i = 0; i < turnData.candidates.length; i++) {
+				const c = turnData.candidates[i];
+				let classes = 'candidate-row';
+				if (c.isActual) classes += ' is-actual';
+				if (c.isBot) classes += ' is-bot';
+
+				const rankLabel = c.cascadeRank !== lastRank ? `#${c.cascadeRank}` : '';
+				lastRank = c.cascadeRank;
+
+				const valueStr = c.value !== 0 ? c.value.toFixed(2) : '\u2014';
+				const typeLabel = c.type.replace('_', ' ');
+				const typeClass = `type-${c.type}`;
+
+				let tags = '';
+				if (c.isActual) tags += '<span class="candidate-tag tag-actual">played</span>';
+				if (c.isBot) tags += '<span class="candidate-tag tag-bot">bot</span>';
+
+				html += `<tr class="${classes}" data-candidate-index="${i}">
+					<td class="col-rank">${rankLabel}</td>
+					<td>${c.description || c.type}</td>
+					<td class="col-type"><span class="type-badge ${typeClass}">${typeLabel}</span></td>
+					<td class="col-value">${valueStr}</td>
+					<td class="col-tags">${tags}</td>
+				</tr>`;
+
+				// Breakdown detail row
+				html += `<tr class="breakdown-row" id="breakdown-${i}"><td colspan="5">`;
+				html += renderBreakdown(c);
+				html += '</td></tr>';
+			}
+
+			html += '</tbody></table>';
+			candidatesDiv.innerHTML = html;
+
+			// Add hover + click listeners
+			const rows = candidatesDiv.querySelectorAll('tr.candidate-row');
+			for (const row of rows) {
+				const idx = parseInt(row.dataset.candidateIndex);
+				const candidate = turnData.candidates[idx];
+				row.addEventListener('mouseenter', () => highlightCandidate(candidate, turnData.state));
+				row.addEventListener('mouseleave', () => clearHighlights());
+				row.addEventListener('click', () => {
+					const detail = document.getElementById(`breakdown-${idx}`);
+					detail.classList.toggle('open');
+				});
+			}
+		} else {
+			candidatesDiv.innerHTML = '<div class="candidates-title">No candidates available</div>';
+		}
+	}
+
+	function renderPlayerStats() {
+		const container = document.getElementById('playerStats');
+		let html = '<div class="candidates-title" style="margin-bottom:8px;">Player Accuracy</div>';
+		for (const player of gameInfo.players) {
+			const ps = summary.perPlayer[player];
+			if (!ps || ps.total === 0) continue;
+			const pct = Math.round(((ps.correct + ps.good) / ps.total) * 100);
+			const correctW = Math.round((ps.correct / ps.total) * 100);
+			const goodW = Math.round((ps.good / ps.total) * 100);
+			const inaccW = Math.round((ps.inaccuracy / ps.total) * 100);
+			const mistakeW = Math.round(((ps.mistake + ps.blunder) / ps.total) * 100);
+			html += `
+				<div class="player-stat-row">
+					<span class="player-stat-name">${player}</span>
+					<div class="player-accuracy-bar">
+						<div style="width:${correctW}%;background:#2e7d32;height:100%;"></div>
+						<div style="width:${goodW}%;background:#558b2f;height:100%;"></div>
+						<div style="width:${inaccW}%;background:#f9a825;height:100%;"></div>
+						<div style="width:${mistakeW}%;background:#e65100;height:100%;"></div>
+					</div>
+					<span class="player-pct">${pct}%</span>
+				</div>`;
+		}
+		container.innerHTML = html;
+	}
+
+	function goToTurn(index) {
+		if (index < 0 || index >= turns.length) return;
+		currentTurnIndex = index;
+
+		const turnData = turns[index];
+		renderBoard(turnData.state);
+		renderAnalysis(turnData);
+
+		// Update nav
+		document.getElementById('turnDisplay').textContent = `Turn ${turnData.turn} / ${turns.length}`;
+		document.getElementById('btnFirst').disabled = index === 0;
+		document.getElementById('btnPrev').disabled = index === 0;
+		document.getElementById('btnNext').disabled = index === turns.length - 1;
+		document.getElementById('btnLast').disabled = index === turns.length - 1;
+
+		// Update progress bar active segment
+		const segments = progressBar.children;
+		for (let i = 0; i < segments.length; i++) {
+			segments[i].classList.toggle('seg-active', i === index);
+		}
+	}
+
+	function renderLegend() {
+		const level = gameInfo.level;
+
+		const priorities = [
+			{ level: 11, text: 'Play into potential bluff', note: 'If finessed with bluff/maybe-bluff status' },
+			{ level: 5,  text: 'Play into hidden finesse', note: 'Hidden component on next player\'s chop about to be discarded' },
+			{ level: 1,  text: 'Unlock next player', note: 'If next player is locked' },
+			{ level: 1,  text: 'Urgent saves', note: 'Only-save, trash fix, urgent fix, play-over-save for next player' },
+			{ level: 1,  text: 'Generation discard', note: 'At 0 clues, discard to let next player save next-next player' },
+			{ level: 1,  text: 'High-value finesse clue involving next player', note: 'Play clue with finesses through next player' },
+			{ level: 1,  text: 'Play finesse cards (P0)', note: 'Blind plays into waiting finesses' },
+			{ level: 1,  text: 'Blind play missing card', note: 'Endgame: guess slot 1 if it could be a needed card' },
+			{ level: 3,  text: 'Sarcastic discard', note: 'Discard known duplicate to signal the other copy' },
+			{ level: 1,  text: 'Unlock other players', note: 'Unlock someone other than next player' },
+			{ level: 1,  text: 'Forced discard', note: 'If next player is locked and we have 0-1 clues' },
+			{ level: 10, text: 'Gentleman\'s Discard', note: 'Discard a playable to signal exact identity to another player' },
+			{ level: 1,  text: 'Play connecting cards or 5s (P1-P3)', note: 'Cards that connect to others\' hands, own hand, or are 5s' },
+			{ level: 10, text: 'Baton Discard', note: 'Discard a clued non-playable that matches someone\'s finesse position' },
+			{ level: 1,  text: 'Discard known trash', note: 'At high pace and low clues' },
+			{ level: 7,  text: 'Shout Discard', note: 'Discard trash to chop-move next player\'s valuable card' },
+			{ level: 6,  text: 'Tempo Clue Chop Move (TCCM)', note: 'Tempo clue that moves chop off a valuable card onto trash' },
+			{ level: 1,  text: 'Play clue (2p)', note: '2-player only: give play/tempo clue if partner not loaded' },
+			{ level: 1,  text: 'Play any playable card (P4-P5)', note: 'Unknown cards or other low-priority playables' },
+			{ level: 1,  text: 'Give play clue (if value >= MCVP)', note: 'Minimum Clue Value Principle: clue must have value >= 1' },
+			{ level: 1,  text: 'Urgent actions for non-next players', note: 'Saves and fixes for players further away' },
+			{ level: 1,  text: 'Stall clues', note: '5-stalls, tempo stalls, fill-in, locked saves, 8-clue stalls, hard burns' },
+			{ level: 8,  text: 'Positional discard/misplay', note: 'Endgame: discard from a slot matching a needed card in another hand' },
+			{ level: 1,  text: 'Discard known trash (any pace)', note: 'Fall-through trash discard' },
+			{ level: 1,  text: 'Early save clue', note: 'Save a card that isn\'t immediately threatened' },
+			{ level: 1,  text: 'Stalling (8 clues / locked)', note: 'Must give a clue at 8 clue tokens; locked hand stalling' },
+			{ level: 1,  text: 'Discard chop', note: 'Default: discard oldest unclued card' },
+		];
+
+		const filtered = priorities.filter(p => p.level <= level);
+
+		let priorityHtml = '';
+		filtered.forEach((p, i) => {
+			const levelTag = p.level > 1 ? `<span class="pri-level">(L${p.level}+)</span>` : '';
+			priorityHtml += `<li><span class="pri-num">${i + 1}.</span> ${p.text} ${levelTag}<br><span class="pri-note">${p.note}</span></li>`;
+		});
+
+		document.getElementById('legendContent').innerHTML = `
+			<h4>Move Classifications</h4>
+			<p><span class="classification-badge cls-correct">Correct</span> Matches bot's top recommendation</p>
+			<p><span class="classification-badge cls-good">Good</span> In candidate list, within 0.3 of best value</p>
+			<p><span class="classification-badge cls-inaccuracy">Inaccuracy</span> 0.3-1.0 below best value</p>
+			<p><span class="classification-badge cls-mistake">Mistake</span> &gt;1.0 below best, or not in candidate list</p>
+			<p><span class="classification-badge cls-blunder">Blunder</span> Causes a strike or loses critical card</p>
+
+			<h4>Action Priority Cascade (Level ${level})</h4>
+			<p>The bot checks these in order and takes the first applicable action:</p>
+			<ol class="priority-list">${priorityHtml}</ol>
+
+			<h4>Clue Value Formula</h4>
+			<p>Value = 0.5 &times; (finesses + playables) + new_touched_value + 0.01 &times; elim - bad_touch - 0.1 &times; cm_dupe - 0.1 &times; avoidable_dupe - 0.1 &times; remainder&sup2; + precision</p>
+			<p>A clue must have value &ge; 1 to meet Minimum Clue Value Principle (MCVP).</p>
+
+			<h4>Play Priorities</h4>
+			<p>P0: Finesse/blind play &bull; P1: Connects to others &bull; P2: Connects in own hand &bull; P3: Playing a 5 &bull; P4: Unknown card &bull; P5: Other/oldest</p>
+
+			<h4>Notes</h4>
+			<p>Re-run with <code>level=N</code> to compare different convention levels.</p>
+		`;
+	}
+
+	// Initial render
+	renderLegend();
+	renderPlayerStats();
+	if (turns.length > 0) {
+		goToTurn(0);
+	}
+})();
+</script>
+</body>
+</html>
